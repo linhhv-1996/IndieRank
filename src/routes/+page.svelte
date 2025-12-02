@@ -1,6 +1,8 @@
 <script lang="ts">
     import { goto } from '$app/navigation';
+    import { COUNTRIES } from '$lib/country_config';
     import { searchStore } from '$lib/stores';
+    import { slugify } from '$lib/utils';
 
     let keyword = $searchStore.keyword;
     let country = 'us';
@@ -8,14 +10,14 @@
 
     function handleScan() {
         if (!keyword) return;
-        
         isScanning = true;
-        // Giả lập delay loading UI
+        
+        // Delay giả lập 1 chút cho đẹp visual
         setTimeout(() => {
-            searchStore.set({ keyword, country });
+            const slug = slugify(keyword);
             isScanning = false;
-            goto('/analyze');
-        }, 900);
+            goto(`/analyze/${country}/${slug}`);
+        }, 500);
     }
     
     function presetSearch(val: string) {
@@ -61,19 +63,19 @@
         <div class="w-full max-w-xl mx-auto">
             <div class="relative flex items-center bg-card rounded-xl border border-border focus-within:border-accent focus-within:ring-2 focus-within:ring-accent/15 transition-all p-1.5 shadow-soft">
                 <!-- Country Select -->
-                <div class="relative border-r border-border pr-2 mr-2">
-                    <select bind:value={country} class="appearance-none bg-transparent text-white text-xs md:text-sm font-mono pl-3 pr-8 py-2 outline-none cursor-pointer hover:text-accent transition-colors">
-                        <option value="us">🇺🇸 US</option>
-                        <option value="uk">🇬🇧 UK</option>
-                        <option value="vn">🇻🇳 VN</option>
-                        <option value="sg">🇸🇬 SG</option>
-                    </select>
-                    <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-subtle">
-                        <svg class="h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
-                        </svg>
-                    </div>
-                </div>
+                <div class="relative border-r border-border pr-2 mr-2 shrink-0 overflow-hidden">
+            <select bind:value={country} class="w-full appearance-none bg-transparent text-white text-xs md:text-sm font-mono pl-3 pr-5 py-2 outline-none cursor-pointer hover:text-accent transition-colors truncate">
+                {#each COUNTRIES as country}
+                    <option value={country.gl}>{country.flag} {country.gl.toUpperCase()}</option>
+                {/each}
+            </select>
+            
+            <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-subtle">
+                <svg class="h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+                </svg>
+            </div>
+        </div>
 
                 <input 
                     type="text" 
