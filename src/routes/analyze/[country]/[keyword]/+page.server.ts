@@ -1,180 +1,13 @@
+// src/routes/analyze/[country]/[keyword]/+page.server.ts
+
 import type { PageServerLoad } from './$types';
-import type { RawApiResponse, AnalysisResult, SerpItem, SeedingTarget, Verdict } from '$lib/types';
+import type { RawApiResponse, AnalysisResult, AppItem, SeedingTarget, Verdict } from '$lib/types';
 import { PRIVATE_VALUESERP_API_KEY } from '$env/static/private';
 import { COUNTRIES } from '$lib/country_config';
 import { DOMAIN_KS } from '$lib/constants';
 
 
-const COUNTRY_MAP = COUNTRIES.reduce((acc, curr) => {
-    let hl = 'en';
-    if (curr.gl === 'vn') hl = 'vi';
-    else if (curr.gl === 'tw') hl = 'zh-TW';
 
-    acc[curr.gl] = { gl: curr.gl, hl: hl, google_domain: curr.domain };
-    return acc;
-}, {} as Record<string, { gl: string; hl: string; google_domain: string }>);
-
-function unslugify(slug: string) {
-    return slug.replace(/-/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
-}
-
-function getBrandName(input: string): string {
-    if (!input) return '';
-    let urlLike = input.trim();
-    if (!/^[a-zA-Z][a-zA-Z\d+\-.]*:\/\//.test(urlLike)) {
-        urlLike = 'https://' + urlLike;
-    }
-    try {
-        const hostname = new URL(urlLike).hostname.toLowerCase();
-        const parts = hostname.replace(/^(www|m|app)\./, '').split('.');
-        if (parts.length < 2) return parts[0] || 'Site';
-        // Lấy phần tên chính (domain without tld)
-        return parts[parts.length - 2].charAt(0).toUpperCase() + parts[parts.length - 2].slice(1);
-    } catch {
-        return 'Site';
-    }
-}
-
-// Helper lấy meta info từ snippet (số comment, ngày tháng)
-function extractMetaFromOrganic(item: any): string {
-    const displayed = item.displayed_link?.toLowerCase() || '';
-    if (displayed.includes('ago') || displayed.includes('comment') || displayed.includes('answer') || displayed.startsWith('http')) {
-        return item.displayed_link;
-    }
-    const extensions = item.rich_snippet?.top?.extensions || [];
-    const commentExt = extensions.find((e: string) => 
-        e.toLowerCase().includes('answer') || e.toLowerCase().includes('comment')
-    );
-    return commentExt || `Rank #${item.position}`;
-}
-
-// ==========================================
-// 2. HELPER: CATEGORIZE DOMAIN
-// ==========================================
-function categorizeDomain(domain: string, title: string): { type: string, isWeak: boolean, scoreCategory: 'ULTRA' | 'WEAK' | 'HARD' | 'NORMAL' } {
-    const d = domain ? domain.toLowerCase() : '';
-    const t = title ? title.toLowerCase() : '';
-    const checkList = (keywords: string[]) => keywords.some(k => d.includes(k.toLowerCase()));
-
-    if (checkList(DOMAIN_KS.PUBLIC_DOCS) || t.includes('.pdf') || t.includes('.doc') || t.includes('sheet')) {
-        return { type: 'Public Doc', isWeak: true, scoreCategory: 'ULTRA' };
-    }
-    if (checkList(DOMAIN_KS.SOCIAL_FORUMS)) {
-        return { type: 'Community', isWeak: true, scoreCategory: 'WEAK' };
-    }
-    if (checkList(DOMAIN_KS.REVIEW_GIANTS)) {
-        return { type: 'Review Giant', isWeak: false, scoreCategory: 'HARD' };
-    }
-    if (checkList(DOMAIN_KS.TECH_GIANTS)) {
-        return { type: 'Tech Repo', isWeak: false, scoreCategory: 'HARD' };
-    }
-    return { type: 'Web/Blog', isWeak: false, scoreCategory: 'NORMAL' };
-}
-
-// ==========================================
-// 3. CORE LOGIC: ANALYZE MARKET
-// ==========================================
-function analyzeMarket(serpItems: SerpItem[], seedingTargets: SeedingTarget[]): Verdict {
-    let opportunityScore = 0;
-    let hardObstaclesInTop3 = 0;
-    
-    const giants = serpItems
-        .filter(i => !i.isWeakSpot && parseInt(i.rank) <= 3)
-        .map(i => getBrandName(i.url))
-        .slice(0, 2)
-        .join(', ');
-
-    serpItems.forEach((item) => {
-        const rank = parseInt(item.rank);
-        const scoreCategory = item.scoreCategory || 'NORMAL';
-
-        if (scoreCategory === 'ULTRA') {
-            if (rank <= 3) opportunityScore += 30;
-            else opportunityScore += 10;
-        } else if (scoreCategory === 'WEAK') {
-            if (rank <= 3) opportunityScore += 15;
-            else if (rank <= 5) opportunityScore += 5;
-            else opportunityScore += 2;
-        } else if (scoreCategory === 'HARD') {
-            if (rank <= 3) hardObstaclesInTop3++;
-        }
-    });
-
-    if (hardObstaclesInTop3 >= 2) {
-        return {
-            status: "Saturated",
-            title: "DON'T BUILD HERE",
-            description: `<b>Dangerous Territory.</b> The Top 3 is dominated by review giants/ads like <b>${giants}</b>. Users are looking for comparisons, not a new tool. <br><i>Advice: Niche down further.</i>`,
-            color: "red"
-        };
-    }
-
-    if (opportunityScore >= 20) {
-        return {
-            status: "SEO Goldmine",
-            title: "BUILD IMMEDIATELY",
-            description: `<b>Perfect Condition.</b> Google is ranking PDFs, Docs, or Forum threads in the Top 3. There is NO authoritative software satisfying this intent.`,
-            color: "green"
-        };
-    }
-
-    if (opportunityScore >= 5 || seedingTargets.length > 0) {
-         return {
-            status: "Seeding Gap",
-            title: "HIJACK TRAFFIC",
-            description: `<b>Good Entry Point.</b> Hard to SEO directly against <b>${giants}</b>, but several high-authority community posts already rank for this query. <br><i>Strategy: Use "Parasite SEO" by piggybacking on those existing platforms (posts, templates, videos...) instead of trying to rank a new standalone page.</i>`,
-            color: "yellow"
-        };
-    }
-
-    return {
-        status: "Competitive",
-        title: "UPHILL BATTLE",
-        description: `No obvious weak spots. The SERP is filled with established blogs and brands.`,
-        color: "red"
-    };
-}
-
-// ==========================================
-// 4. MAIN LOAD FUNCTION (Robust)
-// ==========================================
-export const load: PageServerLoad = async ({ params }) => {
-    const countryCode = params.country.toLowerCase();
-    const rawKeyword = params.keyword;
-    const readableKeyword = unslugify(rawKeyword);
-
-    const metaData = {
-        keyword: readableKeyword,
-        slug: rawKeyword,
-        country: countryCode.toUpperCase(),
-        metaTitle: `${readableKeyword} Analysis`,
-        metaDesc: `Analysis for ${readableKeyword}`,
-    };
-
-    const loadAnalysisData = async (): Promise<AnalysisResult> => {
-        const config = COUNTRY_MAP[countryCode] || COUNTRY_MAP['us'];
-        const url = new URL('https://api.valueserp.com/search');
-        
-        url.searchParams.append('api_key', PRIVATE_VALUESERP_API_KEY);
-        url.searchParams.append('q', readableKeyword);
-        url.searchParams.append('gl', config.gl);
-        url.searchParams.append('hl', 'en');
-        url.searchParams.append('google_domain', config.google_domain);
-        
-        // Bật hết cờ để lấy tối đa dữ liệu có thể
-        url.searchParams.append('include_answer_box', 'true');
-        url.searchParams.append('include_ai_overview', 'true');
-        url.searchParams.append('max_page', '1');
-
-        try {
-            // const res = await fetch(url.toString());
-            // if (!res.ok) throw new Error(`ValueSERP API Error: ${res.statusText}`);
-
-            // const apiData: RawApiResponse = await res.json();
-
-            // if (apiData.request_info && apiData.request_info.success === false) {
-            //     throw new Error(apiData.request_info.message || 'API request failed');
-            // }
 
             const apiData = {
   "request_info": {
@@ -690,143 +523,299 @@ export const load: PageServerLoad = async ({ params }) => {
   }
 };
 
-            // --- 1. NORMALIZE SERP ITEMS ---
-            // Luôn fallback mảng rỗng nếu không có organic_results
+
+// ==========================================
+// 1. HELPER FUNCTIONS
+// ==========================================
+
+const COUNTRY_MAP = COUNTRIES.reduce((acc, curr) => {
+    let hl = 'en';
+    if (curr.gl === 'vn') hl = 'vi';
+    else if (curr.gl === 'tw') hl = 'zh-TW';
+    acc[curr.gl] = { gl: curr.gl, hl: hl, google_domain: curr.domain };
+    return acc;
+}, {} as Record<string, { gl: string; hl: string; google_domain: string }>);
+
+function unslugify(slug: string) {
+    return slug.replace(/-/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+}
+
+function getBrandName(input: string): string {
+    if (!input) return '';
+    let urlLike = input.trim();
+    if (!/^[a-zA-Z][a-zA-Z\d+\-.]*:\/\//.test(urlLike)) {
+        urlLike = 'https://' + urlLike;
+    }
+    try {
+        const hostname = new URL(urlLike).hostname.toLowerCase();
+        const parts = hostname.replace(/^(www|m|app)\./, '').split('.');
+        if (parts.length < 2) return parts[0] || 'Site';
+        return parts[parts.length - 2].charAt(0).toUpperCase() + parts[parts.length - 2].slice(1);
+    } catch {
+        return 'Site';
+    }
+}
+
+function extractMetaFromOrganic(item: any): string {
+    const displayed = item.displayed_link?.toLowerCase() || '';
+    if (displayed.includes('ago') || displayed.includes('comment') || displayed.includes('answer') || displayed.startsWith('http')) {
+        return item.displayed_link;
+    }
+    const extensions = item.rich_snippet?.top?.extensions || [];
+    const commentExt = extensions.find((e: string) => 
+        e.toLowerCase().includes('answer') || e.toLowerCase().includes('comment')
+    );
+    return commentExt || `Rank #${item.position}`;
+}
+
+// ==========================================
+// 2. DOMAIN & PRODUCT CATEGORIZATION
+// ==========================================
+
+// Phân loại Domain để tìm Weak Spot (cho Sidebar)
+function categorizeDomain(domain: string, title: string): { type: string, isWeak: boolean, scoreCategory: 'ULTRA' | 'WEAK' | 'HARD' | 'NORMAL' } {
+    // Fallback an toàn tránh lỗi undefined
+    const d = (domain || '').toLowerCase();
+    const t = (title || '').toLowerCase();
+    
+    const checkList = (keywords: string[]) => keywords.some(k => d.includes(k.toLowerCase()));
+
+    if (checkList(DOMAIN_KS.PUBLIC_DOCS) || t.includes('.pdf') || t.includes('.doc') || t.includes('sheet')) {
+        return { type: 'Public Doc', isWeak: true, scoreCategory: 'ULTRA' };
+    }
+    if (checkList(DOMAIN_KS.SOCIAL_FORUMS)) {
+        return { type: 'Community', isWeak: true, scoreCategory: 'WEAK' };
+    }
+    if (checkList(DOMAIN_KS.REVIEW_GIANTS)) {
+        return { type: 'Review Giant', isWeak: false, scoreCategory: 'HARD' };
+    }
+    if (checkList(DOMAIN_KS.TECH_GIANTS)) {
+        return { type: 'Tech Repo', isWeak: false, scoreCategory: 'HARD' };
+    }
+    return { type: 'Web/Blog', isWeak: false, scoreCategory: 'NORMAL' };
+}
+
+// Nhận diện loại Item (App, Template hay Resource)
+function detectItemType(title: string, snippet: string): { type: 'app' | 'template' | 'resource', cta: string } | null {
+    const t = (title || '').toLowerCase();
+    const s = (snippet || '').toLowerCase();
+    const text = t + " " + s;
+
+    // 1. Nhóm Template / Digital Asset
+    if (text.includes('template') || text.includes('theme') || text.includes('kit') || text.includes('preset')) {
+        return { type: 'template', cta: 'Get Template' };
+    }
+
+    // 2. Nhóm SaaS / App / Software
+    if (text.includes('software') || text.includes('app') || text.includes('tool') || text.includes('platform') || text.includes('download') || text.includes('pricing')) {
+        return { type: 'app', cta: 'Get App' };
+    }
+
+    // 3. Trả về null để fallback sau này
+    return null;
+}
+
+// ==========================================
+// 3. MARKET ANALYSIS LOGIC
+// ==========================================
+
+function analyzeMarket(apps: AppItem[], seedingTargets: SeedingTarget[]): Verdict {
+    let opportunityScore = 0;
+    
+    // Nhiều đất diễn cho seeding (Forum/Reddit) -> Tốt cho Dev
+    if (seedingTargets.length >= 3) opportunityScore += 40;
+    else if (seedingTargets.length >= 1) opportunityScore += 15;
+
+    // Ít App xịn chiếm sóng -> Cơ hội build app mới
+    // (Đếm số lượng app thực sự, không tính resource/guide)
+    const realAppsCount = apps.filter(a => a.type === 'app').length;
+    if (realAppsCount < 5) opportunityScore += 20;
+
+    if (opportunityScore >= 40) {
+        return {
+            status: "SEO Goldmine",
+            title: "BUILD IMMEDIATELY",
+            description: `<b>High Demand, Low Supply.</b> Search results are filled with forums and discussions. Users are looking for a solution but haven't found a dominant tool yet.`,
+            color: "green"
+        };
+    }
+
+    if (opportunityScore >= 15) {
+         return {
+            status: "Seeding Gap",
+            title: "HIJACK TRAFFIC",
+            description: `<b>Good Entry Point.</b> Established competitors exist, but users are still actively discussing this on Reddit/Quora. <i>Strategy: Build a better tool and seed it in these discussions.</i>`,
+            color: "yellow"
+        };
+    }
+
+    return {
+        status: "Competitive",
+        title: "UPHILL BATTLE",
+        description: `<b>Saturated Market.</b> The results are dominated by big brands and tools. Hard to SEO directly.`,
+        color: "red"
+    };
+}
+
+// ==========================================
+// 4. MAIN LOAD FUNCTION
+// ==========================================
+
+export const load: PageServerLoad = async ({ params }) => {
+    const countryCode = params.country.toLowerCase();
+    const rawKeyword = params.keyword;
+    const readableKeyword = unslugify(rawKeyword);
+
+    const metaData = {
+        keyword: readableKeyword,
+        slug: rawKeyword,
+        country: countryCode.toUpperCase(),
+        metaTitle: `Best ${readableKeyword} Tools & Analysis`,
+        metaDesc: `Discover the best tools for ${readableKeyword}. Market analysis and opportunities for indie builders.`,
+    };
+
+    const loadAnalysisData = async (): Promise<AnalysisResult> => {
+        const config = COUNTRY_MAP[countryCode] || COUNTRY_MAP['us'];
+        const url = new URL('https://api.valueserp.com/search');
+        
+        url.searchParams.append('api_key', PRIVATE_VALUESERP_API_KEY);
+        url.searchParams.append('q', readableKeyword);
+        url.searchParams.append('gl', config.gl);
+        url.searchParams.append('hl', 'en');
+        url.searchParams.append('google_domain', config.google_domain);
+        url.searchParams.append('include_answer_box', 'true');
+        url.searchParams.append('include_ai_overview', 'true');
+        url.searchParams.append('max_page', '1');
+
+        try {
+            // const res = await fetch(url.toString());
+            // if (!res.ok) throw new Error(`ValueSERP API Error: ${res.statusText}`);
+            
+            // const apiData: RawApiResponse = await res.json();
+
+            // if (apiData.request_info && apiData.request_info.success === false) {
+            //      console.error("API Logic Error:", apiData.request_info.message);
+            // }
+
             const organicResults = apiData.organic_results || [];
             
-            let pos = 0;
-            let last = 0;
-            const serpItems: SerpItem[] = organicResults.map(item => {
-                if (item.position > pos) {
-                    pos = item.position;
-                    last = item.position;
-                } else {
-                    pos = last + item.position;
-                }
- 
-                const { type, isWeak, scoreCategory } = categorizeDomain(item.domain, item.title);
-
-                console.log(pos, last);
-
-                return {
-                    rank: pos < 10 ? `0${pos}` : pos,
-                    domain: item.domain,
-                    title: item.title,
-                    url: item.link,
-                    snippet: item.snippet,
-                    tags: [type],
-                    isWeakSpot: isWeak,
-                    scoreCategory: scoreCategory,
-                    displayed_link: item.displayed_link,
-                };
-            });
-
-            // --- 2. EXTRACT SEEDING TARGETS ---
+            const apps: AppItem[] = [];
             const seedingTargets: SeedingTarget[] = [];
             const addedUrls = new Set<string>();
 
-            // Nguồn A: Discussions Box (Nếu có)
-            if (apiData.discussions_and_forums) {
-                apiData.discussions_and_forums.forEach(d => {
-                    const metaParts = [];
-                    if (d.source?.comments_count) metaParts.push(d.source.comments_count);
-                    if (d.source?.time) metaParts.push(d.source.time);
+            // --- BƯỚC 1: QUÉT LẦN ĐẦU (Tách Apps vs Seeding Targets) ---
+            organicResults.forEach(item => {
+                if (!item.link || addedUrls.has(item.link)) return;
 
+                const domain = item.domain || '';
+                const title = item.title || '';
+                const snippet = item.snippet || '';
+                
+                const { isWeak } = categorizeDomain(domain, title);
+                const brandName = getBrandName(domain);
+
+                // A. Sidebar Data: Weak Spots (Forum, Reddit, Social)
+                if (isWeak) {
                     seedingTargets.push({
-                        source: d.source?.source_title || 'Forum',
-                        title: d.discussion_title,
-                        url: d.link,
-                        meta: metaParts.join(' • ') || 'Active Thread',
-                        isHijackable: true
-                    });
-                    addedUrls.add(d.link);
-                });
-            }
-
-            // Nguồn B: Quét Organic Results (Tìm Reddit/Quora ẩn trong Top 20)
-            serpItems.forEach(item => {
-                if (item.isWeakSpot && !addedUrls.has(item.url)) {
-                    let sourceName = getBrandName(item.domain);
-
-
-                    console.log(item);
-                    console.log(extractMetaFromOrganic(item));
-                    
-                    seedingTargets.push({
-                        source: sourceName,
-                        title: item.title,
-                        url: item.url,
+                        source: brandName,
+                        title: title,
+                        url: item.link,
                         meta: extractMetaFromOrganic(item),
                         isHijackable: true
                     });
-                    addedUrls.add(item.url);
+                    addedUrls.add(item.link);
+                } 
+                // B. Main Grid Data: Product Detection
+                else {
+                    // Loại bỏ báo chí lớn (chỉ dùng làm fallback)
+                    const NEWS_SITES = ['nytimes.com', 'forbes.com', 'wsj.com', 'wikipedia.org', 'cafebiz.vn', 'vnexpress.net'];
+                    const isNews = NEWS_SITES.some(n => domain.toLowerCase().includes(n));
+
+                    if (!isNews) {
+                        const detected = detectItemType(title, snippet);
+                        
+                        if (detected) {
+                            apps.push({
+                                name: brandName,
+                                domain: domain,
+                                url: item.link,
+                                description: snippet,
+                                tags: [detected.type === 'app' ? 'Software' : 'Template'],
+                                type: detected.type,
+                                ctaText: detected.cta
+                            });
+                            addedUrls.add(item.link);
+                        }
+                    }
                 }
             });
 
-            // Nguồn C: People Also Ask Sources (Nếu link nguồn là Forum)
-            if (apiData.related_questions) {
-                apiData.related_questions.forEach(q => {
-                    if (q.source && !addedUrls.has(q.source.link)) {
-                        const { isWeak } = categorizeDomain(q.source.link, q.source.title);
-                        if (isWeak) {
-                            seedingTargets.push({
-                                source: 'PAA Source',
-                                title: q.question,
-                                url: q.source.link,
-                                meta: 'Featured Answer',
-                                isHijackable: true
-                            });
-                            addedUrls.add(q.source.link);
-                        }
+            // --- BƯỚC 2: FALLBACK STRATEGY ---
+            // Nếu tìm được quá ít App/Template (dưới 3), lấy thêm các bài Blog/Resource tốt nhất
+            if (apps.length < 3) {
+                organicResults.forEach(item => {
+                    if (apps.length >= 10) return; // Chỉ lấy tối đa 10 items
+                    if (!item.link || addedUrls.has(item.link)) return;
+
+                    const domain = item.domain || '';
+                    const title = item.title || '';
+                    const snippet = item.snippet || '';
+
+                    // Chỉ lấy những trang KHÔNG PHẢI Weak Spot (vì Weak Spot đã ở Sidebar)
+                    const { isWeak } = categorizeDomain(domain, title);
+                    
+                    if (!isWeak) {
+                        apps.push({
+                            name: getBrandName(domain),
+                            domain: domain,
+                            url: item.link,
+                            description: snippet,
+                            tags: ['Guide'],
+                            type: 'resource', // Đánh dấu là Resource/Guide
+                            ctaText: 'Read Guide'
+                        });
+                        addedUrls.add(item.link);
                     }
                 });
             }
 
-            // --- 3. ANALYZE VERDICT ---
-            const verdict = analyzeMarket(serpItems, seedingTargets);
+            // --- BƯỚC 3: LẤY THÊM SEEDING TỪ 'Discussions' BOX ---
+            if (apiData.discussions_and_forums) {
+                apiData.discussions_and_forums.forEach(d => {
+                    if (d.link && !addedUrls.has(d.link)) {
+                        seedingTargets.push({
+                            source: d.source?.source_title || 'Forum',
+                            title: d.discussion_title || 'Discussion',
+                            url: d.link,
+                            meta: 'Active Thread',
+                            isHijackable: true
+                        });
+                        addedUrls.add(d.link);
+                    }
+                });
+            }
 
-            // --- 4. EXTRACT PIVOT IDEAS (Gom từ 4 nguồn) ---
+            // --- BƯỚC 4: PIVOT IDEAS (Related Searches) ---
             let rawIdeas: string[] = [];
-
-            // Nguồn 1: Related Searches (Thường ở cuối)
             if (apiData.related_searches) {
                 rawIdeas.push(...apiData.related_searches.map(s => s.query));
             }
-
-            // Nguồn 2: People Also Ask (Nếu có)
             if (apiData.related_questions) {
                 rawIdeas.push(...apiData.related_questions.map(q => q.question));
             }
-
-            // Nguồn 3: Inline Videos Titles (Nếu có - Case Invoice Generator)
-            if (apiData.inline_videos) {
-                rawIdeas.push(...apiData.inline_videos.map(v => v.title));
-            }
-
-            // Nguồn 4: AI Overview Headers/Bold text (Nếu có - Case Habit Tracker)
-            if (apiData.ai_overview?.ai_overview_contents) {
-                apiData.ai_overview.ai_overview_contents.forEach(content => {
-                    if (content.list) {
-                        content.list.forEach(li => {
-                            if (li.header) rawIdeas.push(li.header.replace(':', ''));
-                        });
-                    }
-                    if (content.type === 'header' && content.text) {
-                        rawIdeas.push(content.text);
-                    }
-                });
-            }
-
-            // Lọc trùng & lấy 8 ý tưởng ngon nhất
+            
             const pivotIdeas = [...new Set(rawIdeas)]
                 .filter(str => str && str.length < 70 && str.length > 5)
                 .slice(0, 8);
 
-            return { verdict, serpItems, seedingTargets, pivotIdeas };
+            // Tính toán Verdict cuối cùng
+            const verdict = analyzeMarket(apps, seedingTargets);
+
+            return { verdict, apps, seedingTargets, pivotIdeas };
 
         } catch (error) {
             console.error("Analysis Error:", error);
-            // Có thể return dummy data hoặc throw để UI xử lý
+            // Có thể return data rỗng để UI không crash hoàn toàn
             throw error;
         }
     };
@@ -836,3 +825,4 @@ export const load: PageServerLoad = async ({ params }) => {
         streamed: loadAnalysisData()
     };
 };
+

@@ -99,10 +99,23 @@ export interface Verdict {
     color: 'green' | 'red' | 'yellow';
 }
 
-export interface AnalysisResult {
-    verdict: Verdict;
-    serpItems: SerpItem[];
-    seedingTargets: SeedingTarget[];
-    pivotIdeas: string[];
+// Type mới cho App hiển thị ở Main Column
+export interface AppItem {
+    name: string;
+    domain: string;
+    url: string;
+    description: string;
+    tags: string[];
+    isSponsor?: boolean;
+    // [MỚI] Để phân loại hiển thị
+    type: 'app' | 'template' | 'resource'; 
+    ctaText: string; // "Get App", "View Template", "Read Guide"
 }
 
+export interface AnalysisResult {
+    verdict: Verdict;
+    // serpItems: SerpItem[]; // <-- Có thể bỏ hoặc giữ nếu muốn debug
+    apps: AppItem[];          // <-- MỚI: Dành cho End-user
+    seedingTargets: SeedingTarget[]; // Dành cho Sidebar (Builder)
+    pivotIdeas: string[];
+}

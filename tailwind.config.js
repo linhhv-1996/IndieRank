@@ -20,7 +20,7 @@ export default {
         mono: ['JetBrains Mono', 'ui-monospace', 'monospace']
       },
       maxWidth: {
-        custom: '1100px'
+        custom: '1200px'
       },
       boxShadow: {
         // Shadow mượt hơn cho các thành phần nổi

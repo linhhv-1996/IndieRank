@@ -1,13 +1,14 @@
 <script lang="ts">
     import type { PageData } from './$types';
-    import SerpList from '$lib/components/analysis/SerpList.svelte';
-    import Sidebar from '$lib/components/analysis/Sidebar.svelte';
-    import { slugify } from '$lib/utils'; // Đảm bảo ông đã export hàm này ở utils
+    import AppGrid from '$lib/components/analysis/AppGrid.svelte'; // <-- Component mới
+    import Sidebar from '$lib/components/analysis/Sidebar.svelte'; // <-- Component cũ
+    import { slugify } from '$lib/utils';
 
     export let data: PageData;
     $: ({ keyword, country, metaTitle, metaDesc, slug } = data);
 
-    // --- CẤU HÌNH SPONSOR GIẢ LẬP (Sau này thay bằng DB call) ---
+    // --- CẤU HÌNH SPONSOR GIẢ LẬP (SLOT $1k) ---
+    // Sau này fetch từ DB dựa trên keyword
     const sponsorData = {
         title: "Clockify - #1 Free Time Tracker",
         domain: "clockify.me",
@@ -34,7 +35,7 @@
 
     <div class="mb-8">
         <p class="text-[11px] font-mono text-subtle uppercase tracking-[0.18em] mb-1">
-            Market Intelligence Report
+            Curated Tools & Insights
         </p>
         <h1 class="text-2xl md:text-3xl font-semibold text-white mb-2 capitalize">
             {keyword}
@@ -54,18 +55,19 @@
         <div class="lg:col-span-8 space-y-8">
             {#await data.streamed}
                 <div class="space-y-4 animate-pulse">
-                    <div class="h-32 bg-zinc-800/50 rounded-xl w-full"></div>
-                    <div class="h-32 bg-zinc-800/50 rounded-xl w-full"></div>
-                    <div class="h-32 bg-zinc-800/50 rounded-xl w-full"></div>
+                    <div class="h-40 bg-zinc-800/50 rounded-2xl w-full border border-zinc-800"></div>
+                    <div class="h-32 bg-zinc-800/50 rounded-2xl w-full border border-zinc-800"></div>
+                    <div class="h-32 bg-zinc-800/50 rounded-2xl w-full border border-zinc-800"></div>
                 </div>
             {:then result} 
-                <SerpList 
-                    items={result.serpItems.slice(0, 10)} 
+                
+                <AppGrid 
+                    apps={result.apps} 
                     sponsor={sponsorData} 
                 />
 
-                <section class="mt-8 pt-8 border-t border-border">
-                    <h3 class="text-sm font-medium text-white mb-4">Explore Related Topics</h3>
+                <section class="mt-12 pt-8 border-t border-border">
+                    <h3 class="text-sm font-medium text-white mb-4">Related Searches</h3>
                     <div class="flex flex-wrap gap-2.5">
                         {#each result.pivotIdeas as term}
                             <a href="/analyze/{country.toLowerCase()}/{slugify(term)}" class="px-3 py-1.5 bg-zinc-900 border border-zinc-800 rounded-full text-xs text-subtle hover:text-white hover:border-accent/50 transition-colors">
@@ -74,6 +76,7 @@
                         {/each}
                     </div>
                 </section>
+
             {:catch error}
                 <div class="p-6 border border-red-500/20 bg-red-500/10 rounded-xl text-center">
                     <p class="text-red-400 text-sm">{error.message}</p>

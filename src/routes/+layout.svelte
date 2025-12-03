@@ -3,6 +3,7 @@
     import "../app.css";
     import Header from "$lib/components/layout/Header.svelte";
     import PageLoader from "$lib/components/ui/PageLoader.svelte";
+    import Footer from '$lib/components/layout/Footer.svelte';
 
    // @ts-ignore
      $: isLoginPage = $page.url.pathname === '/login';
@@ -22,5 +23,5 @@
 </main>
 
 <!-- Footer (nếu cần thêm sau này) -->
-<!-- <Footer /> -->
+<Footer />
  

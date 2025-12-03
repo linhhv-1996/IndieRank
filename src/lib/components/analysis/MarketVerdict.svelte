@@ -3,7 +3,7 @@
     
     export let verdict: Verdict;
 
-    // Helper xác định màu sắc
+    // Helper xác định màu sắc (Giữ nguyên logic)
     const getColorClasses = (color: string) => {
         switch (color) {
             case 'green':
@@ -37,24 +37,19 @@
     $: styles = getColorClasses(verdict.color);
 </script>
 
-<section class="bento-card p-6 relative overflow-hidden group">
-    <div class="absolute top-0 right-0 w-64 h-64 rounded-full blur-3xl -mr-32 -mt-32 pointer-events-none transition-colors duration-500 {styles.glow}"></div>
+<section class="bento-card p-5 relative overflow-hidden group"> <div class="absolute top-0 right-0 w-48 h-48 rounded-full blur-3xl -mr-24 -mt-24 pointer-events-none transition-colors duration-500 {styles.glow}"></div>
 
-    <div class="relative z-10 space-y-4">
-        <div class="flex items-center justify-between">
-            <h3 class="text-[11px] font-mono text-subtle uppercase tracking-[0.18em]">Market Verdict</h3>
-            <span class="px-2.5 py-0.5 border text-[10px] font-mono rounded-full uppercase transition-colors font-semibold {styles.border} {styles.bg} {styles.text}">
+    <div class="relative z-10 space-y-3"> <div class="flex items-center justify-between">
+            <h3 class="text-[10px] font-mono text-subtle uppercase tracking-widest">Market Verdict</h3>
+            <span class="px-2 py-0.5 border text-[9px] font-mono rounded-full uppercase transition-colors font-semibold {styles.border} {styles.bg} {styles.text}">
                 {verdict.status}
             </span>
         </div>
 
-        <div class="flex items-center gap-3">
-            <h4 class="text-2xl md:text-3xl font-bold text-white">{verdict.title}</h4>
-            <span class="w-3 h-3 rounded-full animate-pulse {styles.indicator}"></span>
+        <div class="flex items-start gap-2"> <h4 class="text-lg font-bold text-white leading-tight">{verdict.title}</h4> <span class="w-2 h-2 rounded-full animate-pulse mt-1.5 shrink-0 {styles.indicator}"></span>
         </div>
 
-        <div class="text-sm text-subtle leading-relaxed max-w-3xl">
-            {@html verdict.description}
+        <div class="text-xs text-subtle leading-relaxed break-words"> {@html verdict.description}
         </div>
     </div>
 </section>
