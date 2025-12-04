@@ -8,13 +8,14 @@
 <div class="space-y-6">
     <div class="flex items-center justify-between">
         <h2 class="text-xl font-semibold text-white">
-            {apps.every(a => a.type === 'resource') ? 'Top Curated Resources' : 'Top Recommended Tools'}
+            {apps.every(a => a.type === 'resource') ? 'Curated Resources' : 'Market Leaders'}
         </h2>
-        </div>
+    </div>
 
     <div class="grid grid-cols-1 gap-4">
         {#each apps as app}
-            <div class="bento-card p-5 group hover:bg-zinc-800/30 transition-all flex gap-4 md:gap-5 items-start relative">
+            <div class="bento-card p-5 group hover:bg-zinc-800/30 transition-all flex gap-4 md:gap-5 items-start relative cursor-pointer">
+                
                 <div class="w-12 h-12 md:w-14 md:h-14 shrink-0 rounded-xl bg-zinc-800 border border-zinc-700/50 p-2 flex items-center justify-center">
                     <img src={getFavicon(app.domain)} alt={app.name} class="w-8 h-8 md:w-10 md:h-10 object-contain rounded-sm opacity-80 group-hover:opacity-100 transition-opacity" />
                 </div>
@@ -22,17 +23,21 @@
                 <div class="flex-1 min-w-0">
                     <div class="flex justify-between items-start">
                         <div>
-                            <h3 class="text-base font-semibold text-gray-200 group-hover:text-white transition-colors">
-                                {app.name}
+                            <h3 class="text-base font-semibold text-gray-200 group-hover:text-white transition-colors relative z-10">
+                                <a href={app.url} target="_blank" rel="noopener noreferrer">{app.name}</a>
                             </h3>
-                            <a href={app.url} target="_blank" rel="nofollow" class="text-[11px] text-zinc-500 hover:underline truncate block max-w-[200px]">{app.domain}</a>
+                            
+                            <a href={app.url} target="_blank" rel="nofollow" class="text-[11px] text-zinc-500 hover:underline truncate block max-w-[200px] relative z-10">
+                                {app.domain}
+                            </a>
                         </div>
                         
                         <a href={app.url} target="_blank" rel="noopener noreferrer" 
-                           class="hidden md:flex px-3 py-1.5 border text-xs font-medium rounded-lg transition-all items-center gap-1.5
+                           class="relative z-10 hidden md:flex px-3 py-1.5 border text-xs font-medium rounded-lg transition-all items-center gap-1.5
                            {app.type === 'resource' 
-                               ? 'bg-transparent text-subtle border-zinc-700 hover:text-white hover:border-white' // Style nhẹ cho Resource
-                               : 'bg-zinc-800 text-white border-zinc-700 hover:bg-white hover:text-black hover:border-white'}"> {app.ctaText} 
+                               ? 'bg-transparent text-subtle border-zinc-700 hover:text-white hover:border-white' 
+                               : 'bg-zinc-800 text-white border-zinc-700 hover:bg-white hover:text-black hover:border-white'}"> 
+                            {app.ctaText} 
                             <span class="text-[10px] opacity-60">↗</span>
                         </a>
                     </div>
@@ -57,7 +62,9 @@
                     </div>
                 </div>
                 
-                <a href={app.url} target="_blank" rel="noopener noreferrer" class="absolute inset-0 md:hidden"></a>
+                <a href={app.url} target="_blank" rel="noopener noreferrer" class="absolute inset-0 z-0 rounded-2xl focus:outline-none focus:ring-2 focus:ring-accent/50">
+                    <span class="sr-only">View {app.name}</span>
+                </a>
             </div>
         {/each}
     </div>

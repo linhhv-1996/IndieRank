@@ -43,14 +43,14 @@
         <div class="flex flex-wrap items-center gap-3 text-[11px] text-subtle font-mono">
             <span class="flex items-center gap-1.5">
                 <span class="w-1.5 h-1.5 bg-accent rounded-full animate-pulse"></span> 
-                Live Data
+                Real-time analysis
             </span>
             <span>•</span>
             <span>Region: {country}</span>
         </div>
     </div>
 
-    <div class="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+    <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
         
         <div class="lg:col-span-8 space-y-8">
             {#await data.streamed}
@@ -87,7 +87,36 @@
             {/await}
         </div>
 
-        {#await data.streamed then result}
+        {#await data.streamed}
+            <aside class="lg:col-span-4 space-y-6 sticky-sidebar animate-pulse">
+                
+                <div class="flex items-center justify-between">
+                    <div class="h-7 w-1/3 bg-zinc-800/50 rounded-md"></div> <div class="h-6 w-20 bg-zinc-800/50 rounded-full"></div> </div>
+
+                <div class="h-28 bg-zinc-800/50 rounded-2xl border border-zinc-800"></div>
+
+                <div class="h-48 bg-zinc-800/50 rounded-2xl border border-zinc-800 relative overflow-hidden">
+                    <div class="absolute top-0 right-0 w-24 h-24 bg-zinc-700/20 rounded-full blur-xl"></div>
+                </div>
+
+                <div class="h-64 bg-zinc-800/50 rounded-2xl border border-zinc-800 space-y-4 p-4">
+                    <div class="flex justify-between border-b border-zinc-700/50 pb-2">
+                        <div class="h-3 w-24 bg-zinc-700/50 rounded"></div>
+                        <div class="h-3 w-8 bg-zinc-700/50 rounded"></div>
+                    </div>
+                    {#each Array(4) as _}
+                        <div class="flex gap-3">
+                            <div class="w-8 h-8 rounded bg-zinc-700/30 shrink-0"></div>
+                            <div class="flex-1 space-y-2">
+                                <div class="h-3 w-3/4 bg-zinc-700/30 rounded"></div>
+                                <div class="h-2 w-1/2 bg-zinc-700/20 rounded"></div>
+                            </div>
+                        </div>
+                    {/each}
+                </div>
+
+            </aside>
+        {:then result}
             <Sidebar verdict={result.verdict} targets={result.seedingTargets} />
         {/await}
     </div>

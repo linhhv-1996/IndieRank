@@ -6,9 +6,9 @@
 
 <section class="bento-card p-0 overflow-hidden">
     <div class="px-4 py-3 border-b border-border flex justify-between items-center bg-card/90">
-        <div>
-            <h3 class="text-[10px] font-mono text-subtle uppercase tracking-widest">Seeding Targets</h3>
-            <p class="text-[10px] text-subtle mb-0 leading-relaxed opacity-80">Hijack conversations</p>
+<div>
+            <h3 class="text-[10px] font-mono text-subtle uppercase tracking-widest">Community Discussions</h3>
+            <p class="text-[10px] text-subtle mb-0 leading-relaxed opacity-80">What real users are saying</p>
         </div>
         <span class="text-[10px] bg-zinc-800 border border-border px-1.5 py-0.5 rounded-full font-mono text-subtle">
             {targets.length}

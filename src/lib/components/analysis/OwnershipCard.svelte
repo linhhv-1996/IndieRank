@@ -6,14 +6,16 @@
     <div class="absolute inset-0 bg-gradient-to-br from-accent/5 to-transparent"></div>
     <div class="relative z-10">
         <div class="flex items-center justify-between mb-1.5">
-            <span class="text-[10px] font-mono text-accent uppercase tracking-wider">Ownership</span>
-            <span class="text-[9px] bg-accent/20 text-accent px-1.5 py-0.5 rounded">BETA</span>
+            <span class="text-[10px] font-mono text-accent uppercase tracking-wider">Advertise</span>
+            <span class="text-[9px] bg-accent/20 text-accent px-1.5 py-0.5 rounded">OPEN</span>
         </div>
+        
         <p class="text-xs font-bold text-white mb-1 group-hover:text-accent transition-colors">
-            Rent #1 Slot
+            Feature Your Product
         </p>
+        
         <p class="text-[10px] text-subtle leading-relaxed">
-            Get consistent traffic from this keyword directly to your app.
+            Position your brand in front of users actively searching for this solution.
         </p>
     </div>
 </section>

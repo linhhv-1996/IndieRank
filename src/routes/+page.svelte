@@ -3,26 +3,22 @@
     import { COUNTRIES } from '$lib/country_config';
     import { searchStore } from '$lib/stores';
     import { slugify } from '$lib/utils';
+    import type { PageData } from './$types';
 
     let keyword = $searchStore.keyword;
     let country = 'us';
     let isScanning = false;
 
+    export let data: PageData;
+
     function handleScan() {
         if (!keyword) return;
         isScanning = true;
-        
-        // Delay giả lập 1 chút cho đẹp visual
         setTimeout(() => {
             const slug = slugify(keyword);
             isScanning = false;
             goto(`/analyze/${country}/${slug}`);
         }, 500);
-    }
-    
-    function presetSearch(val: string) {
-        keyword = val;
-        handleScan();
     }
 </script>
 
@@ -30,33 +26,15 @@
     <div class="hero-orbit"></div>
 
     <div class="w-full max-w-custom mx-auto text-center relative z-10">
-        <!-- Top meta -->
-        <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full border border-border bg-card/70 text-[11px] font-mono text-subtle mb-6">
-            <span class="w-1.5 h-1.5 rounded-full bg-accent animate-pulse"></span>
-            <span>Indie Market Intel • Beta</span>
-        </div>
-
-        <!-- BIG CENTER LOGO -->
-        <div class="mb-8 flex flex-col items-center gap-3">
-            <div class="w-16 h-16 md:w-20 md:h-20 bg-accent rounded-2xl flex items-center justify-center text-black font-bold font-mono text-2xl shadow-soft">
-                N
-            </div>
-            <div class="flex flex-col items-center">
-                <span class="text-2xl font-semibold tracking-tight text-white">NicheRadar</span>
-                <span class="text-[11px] font-mono text-subtle uppercase tracking-[0.18em] mt-1">
-                    Market Reconnaissance
-                </span>
-            </div>
-        </div>
-
         <!-- Headline -->
         <h1 class="text-4xl md:text-5xl lg:text-6xl font-medium tracking-tight text-white mb-4 leading-tight">
-            Market Intelligence
-            <span class="block text-gray-500">for Indie Builders.</span>
+            Discover Hidden Gems
+            <span class="block text-gray-500">in Every Niche.</span>
         </h1>
 
         <p class="text-base md:text-lg text-subtle max-w-xl mx-auto mb-9">
-            Stop obsessing over KD. Scan SERPs to spot weak competitors and hijack forum discussions where buyers already hang out.
+            Stop digging through SEO spam.
+            We analyze live search data to surface the best apps, templates, and authentic community discussions.
         </p>
 
         <!-- Search Input with Country -->
@@ -98,23 +76,38 @@
                 </button>
             </div>
             <p class="mt-3 text-[11px] text-subtle font-mono uppercase tracking-[0.18em]">
-                We only look at live Google results. No KD. No fake scores.
+                We only look at live Google results.
             </p>
         </div>
 
         <!-- Recent Keywords -->
-        <div class="mt-10">
-            <p class="text-[11px] font-mono text-subtle uppercase tracking-[0.18em] mb-3">Trending Searches</p>
-            <div class="flex flex-wrap justify-center gap-2.5 max-w-2xl mx-auto">
-                {#each ['invoice generator for freelancers', 'habit tracker notion template', 'saas boilerplate nextjs'] as term}
-                    <button 
-                        class="px-3.5 py-1.5 bg-card border border-border rounded-full text-[12px] text-subtle hover:text-white hover:border-accent/60 hover:bg-card/80 cursor-pointer"
-                        on:click={() => presetSearch(term)}
-                    >
-                        {term}
-                    </button>
-                {/each}
+
+        <div class="w-full max-w-4xl mx-auto mt-16">
+            <div class="flex items-center justify-center gap-4 mb-6 opacity-100">
+                <div class="h-px bg-zinc-800 w-12 md:w-20"></div>
+                <p class="text-[11px] font-mono text-subtle uppercase tracking-[0.2em]">Trending Searches</p>
+                <div class="h-px bg-zinc-800 w-12 md:w-20"></div>
             </div>
+            
+            {#if data.trendingSearches.length > 0}
+                <div class="flex flex-wrap justify-center gap-2">
+                    {#each data.trendingSearches as item}
+                        <a href="/analyze/{item.country}/{item.slug}" class="px-3 py-1.5 rounded-full border border-zinc-800 bg-zinc-900/50 hover:bg-zinc-800 hover:border-zinc-700 transition-colors text-xs text-gray-400 hover:text-white">
+                            {item.keyword}
+                        </a>
+                    {/each}
+                </div>
+
+                <div class="text-center mt-4">
+                    <a href="/niches" class="inline-flex items-center gap-2 text-[11px] text-subtle hover:text-white transition-colors border-b border-transparent hover:border-zinc-700 pb-0.5">
+                        View All Niches <span class="text-[10px]">→</span>
+                    </a>
+                </div>
+
+            {:else}
+                <div class="text-xs text-subtle italic">No recent searches.</div>
+            {/if}
         </div>
+
     </div>
 </div>

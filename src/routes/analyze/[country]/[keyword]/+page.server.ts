@@ -1,532 +1,12 @@
-// src/routes/analyze/[country]/[keyword]/+page.server.ts
-
 import type { PageServerLoad } from './$types';
 import type { RawApiResponse, AnalysisResult, AppItem, SeedingTarget, Verdict } from '$lib/types';
 import { PRIVATE_VALUESERP_API_KEY } from '$env/static/private';
 import { COUNTRIES } from '$lib/country_config';
-import { DOMAIN_KS } from '$lib/constants';
+import { DOMAIN_CATEGORIES, PRODUCT_INTENT } from '$lib/constants';
+import { adminDB } from '$lib/server/firebase';
+import { Timestamp } from 'firebase-admin/firestore';
 
 
-
-
-            const apiData = {
-  "request_info": {
-    "success": true,
-    "topup_credits_remaining": 73,
-    "credits_used_this_request": 2
-  },
-  "search_parameters": {
-    "q": "Habit Tracker Notion Template",
-    "gl": "us",
-    "hl": "en",
-    "google_domain": "google.com",
-    "include_ai_overview": "true",
-    "include_answer_box": "true",
-    "max_page": "2",
-    "engine": "google"
-  },
-  "search_metadata": {
-    "created_at": "2025-12-02T15:44:44.588Z",
-    "processed_at": "2025-12-02T15:44:47.498Z",
-    "total_time_taken": 2.91,
-    "engine_url": "https://www.google.com/search?q=Habit+Tracker+Notion+Template&gl=us&hl=en",
-    "html_url": "https://api.valueserp.com/search?api_key=BC0DE78CDA224510AEA6645023C80284&q=Habit+Tracker+Notion+Template&gl=us&hl=en&google_domain=google.com&include_ai_overview=true&include_answer_box=true&max_page=2&engine=google&output=html",
-    "json_url": "https://api.valueserp.com/search?api_key=BC0DE78CDA224510AEA6645023C80284&q=Habit+Tracker+Notion+Template&gl=us&hl=en&google_domain=google.com&include_ai_overview=true&include_answer_box=true&max_page=2&engine=google&output=json"
-  },
-  "organic_results": [
-    {
-      "position": 1,
-      "block_position": 1,
-      "title": "Habit Tracking Templates",
-      "link": "https://www.notion.com/templates/category/habit-tracking?srsltid=AfmBOoqMzRMvX-RcgniH77w0a-az52bxQ2egg0iNJQp7HWvywJJTFqAU",
-      "domain": "www.notion.com",
-      "displayed_link": "https://www.notion.com › ... › School › Student Life",
-      "snippet": "Designed to help you build and maintain positive habits, our templates offer daily, weekly, and monthly trackers, motivating you towards consistent improvement.",
-      "prerender": false,
-      "sitelinks": {
-        "expanded": [
-          {
-            "title": "Top Habit Tracking templates",
-            "link": "https://www.notion.com/templates/category/best-habit-tracking-templates?srsltid=AfmBOorOu5FY1PKVbtmp-PwpVIAaI3xhaaeuSzXL4xS70tyxnPomOPhp",
-            "snippet": "Designed to help you build and maintain positive habits, our ..."
-          },
-          {
-            "title": "Free",
-            "link": "https://www.notion.com/templates/category/free-habit-tracking-templates?srsltid=AfmBOop5oIz9FSldRNWkXqZy5K4-WEBzDbgeVMTKuYDyoqq0GG7VjuwY",
-            "snippet": "Designed to help you build and maintain positive habits, our ..."
-          }
-        ]
-      },
-      "sitelinks_search_box": false,
-      "page": 1,
-      "position_overall": 1
-    },
-    {
-      "position": 2,
-      "block_position": 2,
-      "title": "I created a notion habit tracker that automatically refreshes ...",
-      "link": "https://www.reddit.com/r/Notion/comments/101tpgb/i_created_a_notion_habit_tracker_that/",
-      "domain": "www.reddit.com",
-      "displayed_link": "40+ comments  ·  2 years ago",
-      "snippet": "A notion habit tracker that refreshes your checklist weekly. There is a step-by-step video guide included to help you set it up within minutes.",
-      "prerender": false,
-      "page": 1,
-      "position_overall": 2
-    },
-    {
-      "position": 3,
-      "block_position": 3,
-      "title": "5 Ways to Build a Habit Tracker in Notion (Free Template ...",
-      "link": "https://thomasjfrank.com/5-ways-to-build-a-habit-tracker-in-notion-free-template-included/",
-      "domain": "thomasjfrank.com",
-      "displayed_link": "https://thomasjfrank.com › 5-ways-to-build-a-habit-trac...",
-      "snippet": "In this guide, I'll show you how to build habit trackers in Notion at five different levels. You can also use the free template I've provided.",
-      "prerender": false,
-      "page": 1,
-      "position_overall": 3
-    },
-    {
-      "position": 4,
-      "block_position": 4,
-      "title": "The Best & Free Notion Habit Tracker Templates of 2025",
-      "link": "https://super.so/templates/the-best-free-notion-habit-tracker-templates-of-2023",
-      "domain": "super.so",
-      "displayed_link": "https://super.so › templates › the-best-free-notion-habit-tr...",
-      "snippet": "These free Notion habit tracker templates are designed to make tracking your progress simple and even a bit fun, coming with everything you need to start ...",
-      "prerender": false,
-      "page": 1,
-      "position_overall": 4
-    },
-    {
-      "position": 5,
-      "block_position": 7,
-      "title": "20 Free & Aesthetic Notion Habit Tracker Templates (2024)",
-      "link": "https://www.notionavenue.co/post/notion-habit-tracker-templates",
-      "domain": "www.notionavenue.co",
-      "displayed_link": "https://www.notionavenue.co › post › notion-habit-trac...",
-      "snippet": "We have curated the best Habit Tracker Templates for Notion in this article, so you can find the one that's right for you or get some ideas to build or improve ...",
-      "prerender": false,
-      "page": 1,
-      "position_overall": 5
-    },
-    {
-      "position": 6,
-      "block_position": 8,
-      "title": "Habit tracker 2025 Template | Notion Marketplace",
-      "link": "https://www.notion.com/templates/notion-habit-tracker?srsltid=AfmBOorTv8NgMJIMz-yOAAyoyprJ_bYqiqAS60_XA9jU5K_ZhF4t3T91",
-      "domain": "www.notion.com",
-      "displayed_link": "https://www.notion.com › templates › notion-habit-trac...",
-      "snippet": "This automated habit tracker template helps build healthy habits, using a button block to easily check off completed habits daily.",
-      "prerender": false,
-      "page": 1,
-      "position_overall": 6
-    },
-    {
-      "position": 1,
-      "block_position": 1,
-      "title": "99 FREE Notion Templates for Everything [2025]",
-      "link": "https://www.notioneverything.com/blog/free-notion-templates",
-      "domain": "www.notioneverything.com",
-      "displayed_link": "https://www.notioneverything.com › blog › free-notion...",
-      "snippet": "Jul 2, 2025 — Free Notion templates cover personal organization, productivity, business, project management, habit tracking, and more, for managing every ...",
-      "prerender": false,
-      "date": "Jul 2, 2025",
-      "date_utc": "2025-07-02T00:00:00.000Z",
-      "page": 2,
-      "position_overall": 7
-    },
-    {
-      "position": 2,
-      "block_position": 2,
-      "title": "25 Best & Free Notion Habit Tracker Templates for 2025",
-      "link": "https://pathpages.com/blog/notion-habit-tracker-templates",
-      "domain": "pathpages.com",
-      "displayed_link": "https://pathpages.com › blog › notion-habit-tracker-tem...",
-      "snippet": "Feb 19, 2025 — Discover the best free Notion habit tracker templates to help you stay organized, motivated, and on track with your 2025 goals!",
-      "prerender": false,
-      "date": "Feb 19, 2025",
-      "date_utc": "2025-02-19T00:00:00.000Z",
-      "page": 2,
-      "position_overall": 8
-    },
-    {
-      "position": 3,
-      "block_position": 3,
-      "title": "Notion Template Habit Tracker",
-      "link": "https://www.pinterest.com/ideas/notion-template-habit-tracker/934480381335/",
-      "domain": "www.pinterest.com",
-      "displayed_link": "https://www.pinterest.com › ... › Design › Product Design",
-      "snippet": "Discover Pinterest's best ideas and inspiration for Notion template habit tracker. Get inspired and try out new things. 1k people searched this.",
-      "prerender": false,
-      "page": 2,
-      "position_overall": 9
-    },
-    {
-      "position": 4,
-      "block_position": 4,
-      "title": "Top 8 Free Habit Tracking Templates",
-      "link": "https://www.notion.com/templates/collections/top-10-free-habit-tracking-templates-in-notion?srsltid=AfmBOopJRFSiP9Os2r9_fsUJPdYsIcDKq5VyyBIqL-QtgNIYVe2fiF0o",
-      "domain": "www.notion.com",
-      "displayed_link": "https://www.notion.com › templates › collections › top-...",
-      "snippet": "Habit trackers monitor progress toward forming new habits. Good templates include customizability, visual progress, and reminders. Avoid overly complex layouts.",
-      "prerender": false,
-      "page": 2,
-      "position_overall": 10
-    },
-    {
-      "position": 5,
-      "block_position": 5,
-      "title": "10 Best Notion Habit Tracker Templates 2024",
-      "link": "https://www.nicheplates.com/blog/10-best-notion-habit-tracker-templates",
-      "domain": "www.nicheplates.com",
-      "displayed_link": "https://www.nicheplates.com › blog › 10-best-notion-ha...",
-      "snippet": "Apr 17, 2024 — The 10 best Notion Habit Tracker Templates in 2024 for organizing your daily routines and achieving personal habit plans with peace of mind.",
-      "prerender": false,
-      "date": "Apr 17, 2024",
-      "date_utc": "2024-04-17T00:00:00.000Z",
-      "page": 2,
-      "position_overall": 11
-    },
-    {
-      "position": 6,
-      "block_position": 6,
-      "title": "12 Best Notion Habit Tracker Templates to Use in 2025",
-      "link": "https://www.widgetly.co/blog/notion-habit-tracker-templates",
-      "domain": "www.widgetly.co",
-      "displayed_link": "https://www.widgetly.co › blog › notion-habit-tracker-te...",
-      "snippet": "Aug 26, 2025 — This guide lists 12 Notion habit tracker templates, from minimalist free options to advanced dashboards, including the Widgetly widget and the ...",
-      "prerender": false,
-      "date": "Aug 26, 2025",
-      "date_utc": "2025-08-26T00:00:00.000Z",
-      "page": 2,
-      "position_overall": 12
-    },
-    {
-      "position": 7,
-      "block_position": 7,
-      "title": "Habit Tracker | Notion Template",
-      "link": "https://www.easlo.co/templates/habit-tracker",
-      "domain": "www.easlo.co",
-      "displayed_link": "https://www.easlo.co › templates › habit-tracker",
-      "snippet": "Mar 12, 2025 — This Notion template tracks your daily habits and routines, helping you visualize progress and maintain consistency.",
-      "prerender": false,
-      "date": "Mar 12, 2025",
-      "date_utc": "2025-03-12T00:00:00.000Z",
-      "page": 2,
-      "position_overall": 13
-    },
-    {
-      "position": 8,
-      "block_position": 8,
-      "title": "Habit Tracker - Free Notion Template",
-      "link": "https://pathpages.com/free-notion-templates/notion-habit-tracker",
-      "domain": "pathpages.com",
-      "displayed_link": "https://pathpages.com › free-notion-templates › notion-...",
-      "snippet": "The Notion Habit Tracker is a free, minimalist template that helps you build better daily habits by tracking your actions over time. Whether you're forming a ...",
-      "prerender": false,
-      "page": 2,
-      "position_overall": 14
-    },
-    {
-      "position": 9,
-      "block_position": 10,
-      "title": "15 Notion Habit Tracker Templates to Help You Stay on Track",
-      "link": "https://geekflare.com/guide/notion-habit-tracker-templates/",
-      "domain": "geekflare.com",
-      "displayed_link": "https://geekflare.com › guide › notion-habit-tracker-te...",
-      "snippet": "Dec 25, 2024 — Notion Habit Tracker Templates help to improve productivity by letting you track your habits in an organized manner.",
-      "prerender": false,
-      "date": "Dec 25, 2024",
-      "date_utc": "2024-12-25T00:00:00.000Z",
-      "page": 2,
-      "position_overall": 15
-    }
-  ],
-  "related_searches": [
-    {
-      "query": "Habit tracker notion template free",
-      "link": "https://www.google.com/search?sca_esv=65d22011d5166a01&gl=us&hl=en&q=Habit+tracker+notion+template+free&sa=X&ved=2ahUKEwiBo83Mn5-RAxU_9bsIHQQjKqQQ1QJ6BAhFEAE",
-      "block_position": 10
-    },
-    {
-      "query": "Habit tracker Notion template free aesthetic",
-      "link": "https://www.google.com/search?sca_esv=65d22011d5166a01&gl=us&hl=en&q=Habit+tracker+Notion+template+free+aesthetic&sa=X&ved=2ahUKEwiBo83Mn5-RAxU_9bsIHQQjKqQQ1QJ6BAhJEAE",
-      "block_position": 10
-    },
-    {
-      "query": "Habit tracker notion template free download",
-      "link": "https://www.google.com/search?sca_esv=65d22011d5166a01&gl=us&hl=en&q=Habit+tracker+notion+template+free+download&sa=X&ved=2ahUKEwiBo83Mn5-RAxU_9bsIHQQjKqQQ1QJ6BAhKEAE",
-      "block_position": 10
-    },
-    {
-      "query": "Notion habit Tracker template with progress bar",
-      "link": "https://www.google.com/search?sca_esv=65d22011d5166a01&gl=us&hl=en&q=Notion+habit+Tracker+template+with+progress+bar&sa=X&ved=2ahUKEwiBo83Mn5-RAxU_9bsIHQQjKqQQ1QJ6BAhLEAE",
-      "block_position": 10
-    },
-    {
-      "query": "Gamified habit Tracker Notion",
-      "link": "https://www.google.com/search?sca_esv=65d22011d5166a01&gl=us&hl=en&q=Gamified+habit+Tracker+Notion&sa=X&ved=2ahUKEwiBo83Mn5-RAxU_9bsIHQQjKqQQ1QJ6BAhEEAE",
-      "block_position": 10
-    },
-    {
-      "query": "Monthly habit tracker Notion",
-      "link": "https://www.google.com/search?sca_esv=65d22011d5166a01&gl=us&hl=en&q=Monthly+habit+tracker+Notion&sa=X&ved=2ahUKEwiBo83Mn5-RAxU_9bsIHQQjKqQQ1QJ6BAhGEAE",
-      "block_position": 10
-    },
-    {
-      "query": "Simple habit tracker Notion",
-      "link": "https://www.google.com/search?sca_esv=65d22011d5166a01&gl=us&hl=en&q=Simple+habit+tracker+Notion&sa=X&ved=2ahUKEwiBo83Mn5-RAxU_9bsIHQQjKqQQ1QJ6BAhHEAE",
-      "block_position": 10
-    },
-    {
-      "query": "Best habit tracker Notion",
-      "link": "https://www.google.com/search?sca_esv=65d22011d5166a01&gl=us&hl=en&q=Best+habit+tracker+Notion&sa=X&ved=2ahUKEwiBo83Mn5-RAxU_9bsIHQQjKqQQ1QJ6BAhIEAE",
-      "block_position": 10
-    }
-  ],
-  "inline_videos": [
-    {
-      "position": 1,
-      "title": "How to Build a Habit Tracker in Notion from Scratch",
-      "length": "40.1",
-      "source": "YouTube · Thomas Frank ExplainsYouTube · Thomas Frank Explains",
-      "block_position": 5
-    },
-    {
-      "position": 2,
-      "title": "Build an Advanced Habit Tracker with Charts & Statistics in ...",
-      "length": "26.15",
-      "source": "YouTube · Creative CoveYouTube · Creative Cove",
-      "block_position": 5
-    },
-    {
-      "position": 3,
-      "title": "2025 NOTION TUTORIAL how to make a notion habit tracker",
-      "length": "21.41",
-      "source": "YouTube · TsuneYouTube · Tsune",
-      "block_position": 5
-    }
-  ],
-  "inline_images": [
-    {
-      "title": "The Ultimate Habit Tracker with Progress Chart Template by ...",
-      "image": "data:image/gif;base64,R0lGODlhAQABAIAAAP///////yH5BAEKAAEALAAAAAABAAEAAAICTAEAOw==",
-      "link": "https://www.notion.com/templates/habittracker?srsltid=AfmBOooar1XiS9stNIBx1Ob2oQmyqJPaLCC1PcWpD6nGQ0Knr9TbCcgr",
-      "block_position": 6
-    },
-    {
-      "title": "I created a notion habit tracker that automatically ...",
-      "image": "data:image/gif;base64,R0lGODlhAQABAIAAAP///////yH5BAEKAAEALAAAAAABAAEAAAICTAEAOw==",
-      "link": "https://www.reddit.com/r/Notion/comments/101tpgb/i_created_a_notion_habit_tracker_that/",
-      "block_position": 6
-    },
-    {
-      "title": "Top 8 Free Habit Tracking Templates | Notion Template ...",
-      "image": "data:image/gif;base64,R0lGODlhAQABAIAAAP///////yH5BAEKAAEALAAAAAABAAEAAAICTAEAOw==",
-      "link": "https://www.notion.com/templates/collections/top-10-free-habit-tracking-templates-in-notion?srsltid=AfmBOopc7KFgD-KU_2PHdE_69TWCPPSuSe2gOLcbNJRK5YwzHSSB7c_M",
-      "block_position": 6
-    },
-    {
-      "title": "How To Use Notion Rollups To Build A Habit Tracker — Red Gregory",
-      "image": "data:image/gif;base64,R0lGODlhAQABAIAAAP///////yH5BAEKAAEALAAAAAABAAEAAAICTAEAOw==",
-      "link": "https://www.redgregory.com/notion/2022/9/29/how-to-use-notion-rollups-to-build-a-habit-tracker",
-      "block_position": 6
-    },
-    {
-      "title": "Build a Habit Tracker with Notion (Tutorial + Template)",
-      "image": "data:image/gif;base64,R0lGODlhAQABAIAAAP///////yH5BAEKAAEALAAAAAABAAEAAAICTAEAOw==",
-      "link": "https://www.youtube.com/watch?v=1-erJ61FjKE",
-      "block_position": 6
-    },
-    {
-      "title": "Free Notion Habit Tracker Template with Progress Bar ...",
-      "image": "data:image/gif;base64,R0lGODlhAQABAIAAAP///////yH5BAEKAAEALAAAAAABAAEAAAICTAEAOw==",
-      "link": "https://www.claritymastery.co/products/notion-habit-tracker",
-      "block_position": 6
-    }
-  ],
-  "search_information": {
-    "original_query_yields_zero_results": false,
-    "total_results": 634000
-  },
-  "pagination": {
-    "pages": [
-      {
-        "current": 1,
-        "next": "https://www.google.com/search?q=Habit+Tracker+Notion+Template&sca_esv=65d22011d5166a01&gl=us&hl=en&ei=bAkvaYG9PL_q7_UPhMaooQo&start=10&sa=N&sstk=Af77f_dA2uyT59zUJYpx8SdA-zY5KbLSvoytcaR6kmS3FZjZfzfaPoLY6lbh5MisjpQuKtRJj4nd8WsUnyq3gRdv1mYUpPTD8GLkOw&ved=2ahUKEwiBo83Mn5-RAxU_9bsIHQQjKqQQ8NMDegQIKBAW",
-        "other_pages": [
-          {
-            "page": 2,
-            "link": "https://www.google.com/search?q=Habit+Tracker+Notion+Template&sca_esv=65d22011d5166a01&gl=us&hl=en&ei=bAkvaYG9PL_q7_UPhMaooQo&start=10&sa=N&sstk=Af77f_dA2uyT59zUJYpx8SdA-zY5KbLSvoytcaR6kmS3FZjZfzfaPoLY6lbh5MisjpQuKtRJj4nd8WsUnyq3gRdv1mYUpPTD8GLkOw&ved=2ahUKEwiBo83Mn5-RAxU_9bsIHQQjKqQQ8tMDegQIKBAE"
-          },
-          {
-            "page": 3,
-            "link": "https://www.google.com/search?q=Habit+Tracker+Notion+Template&sca_esv=65d22011d5166a01&gl=us&hl=en&ei=bAkvaYG9PL_q7_UPhMaooQo&start=20&sa=N&sstk=Af77f_dA2uyT59zUJYpx8SdA-zY5KbLSvoytcaR6kmS3FZjZfzfaPoLY6lbh5MisjpQuKtRJj4nd8WsUnyq3gRdv1mYUpPTD8GLkOw&ved=2ahUKEwiBo83Mn5-RAxU_9bsIHQQjKqQQ8tMDegQIKBAG"
-          },
-          {
-            "page": 4,
-            "link": "https://www.google.com/search?q=Habit+Tracker+Notion+Template&sca_esv=65d22011d5166a01&gl=us&hl=en&ei=bAkvaYG9PL_q7_UPhMaooQo&start=30&sa=N&sstk=Af77f_dA2uyT59zUJYpx8SdA-zY5KbLSvoytcaR6kmS3FZjZfzfaPoLY6lbh5MisjpQuKtRJj4nd8WsUnyq3gRdv1mYUpPTD8GLkOw&ved=2ahUKEwiBo83Mn5-RAxU_9bsIHQQjKqQQ8tMDegQIKBAI"
-          },
-          {
-            "page": 5,
-            "link": "https://www.google.com/search?q=Habit+Tracker+Notion+Template&sca_esv=65d22011d5166a01&gl=us&hl=en&ei=bAkvaYG9PL_q7_UPhMaooQo&start=40&sa=N&sstk=Af77f_dA2uyT59zUJYpx8SdA-zY5KbLSvoytcaR6kmS3FZjZfzfaPoLY6lbh5MisjpQuKtRJj4nd8WsUnyq3gRdv1mYUpPTD8GLkOw&ved=2ahUKEwiBo83Mn5-RAxU_9bsIHQQjKqQQ8tMDegQIKBAK"
-          },
-          {
-            "page": 6,
-            "link": "https://www.google.com/search?q=Habit+Tracker+Notion+Template&sca_esv=65d22011d5166a01&gl=us&hl=en&ei=bAkvaYG9PL_q7_UPhMaooQo&start=50&sa=N&sstk=Af77f_dA2uyT59zUJYpx8SdA-zY5KbLSvoytcaR6kmS3FZjZfzfaPoLY6lbh5MisjpQuKtRJj4nd8WsUnyq3gRdv1mYUpPTD8GLkOw&ved=2ahUKEwiBo83Mn5-RAxU_9bsIHQQjKqQQ8tMDegQIKBAM"
-          },
-          {
-            "page": 7,
-            "link": "https://www.google.com/search?q=Habit+Tracker+Notion+Template&sca_esv=65d22011d5166a01&gl=us&hl=en&ei=bAkvaYG9PL_q7_UPhMaooQo&start=60&sa=N&sstk=Af77f_dA2uyT59zUJYpx8SdA-zY5KbLSvoytcaR6kmS3FZjZfzfaPoLY6lbh5MisjpQuKtRJj4nd8WsUnyq3gRdv1mYUpPTD8GLkOw&ved=2ahUKEwiBo83Mn5-RAxU_9bsIHQQjKqQQ8tMDegQIKBAO"
-          },
-          {
-            "page": 8,
-            "link": "https://www.google.com/search?q=Habit+Tracker+Notion+Template&sca_esv=65d22011d5166a01&gl=us&hl=en&ei=bAkvaYG9PL_q7_UPhMaooQo&start=70&sa=N&sstk=Af77f_dA2uyT59zUJYpx8SdA-zY5KbLSvoytcaR6kmS3FZjZfzfaPoLY6lbh5MisjpQuKtRJj4nd8WsUnyq3gRdv1mYUpPTD8GLkOw&ved=2ahUKEwiBo83Mn5-RAxU_9bsIHQQjKqQQ8tMDegQIKBAQ"
-          },
-          {
-            "page": 9,
-            "link": "https://www.google.com/search?q=Habit+Tracker+Notion+Template&sca_esv=65d22011d5166a01&gl=us&hl=en&ei=bAkvaYG9PL_q7_UPhMaooQo&start=80&sa=N&sstk=Af77f_dA2uyT59zUJYpx8SdA-zY5KbLSvoytcaR6kmS3FZjZfzfaPoLY6lbh5MisjpQuKtRJj4nd8WsUnyq3gRdv1mYUpPTD8GLkOw&ved=2ahUKEwiBo83Mn5-RAxU_9bsIHQQjKqQQ8tMDegQIKBAS"
-          },
-          {
-            "page": 10,
-            "link": "https://www.google.com/search?q=Habit+Tracker+Notion+Template&sca_esv=65d22011d5166a01&gl=us&hl=en&ei=bAkvaYG9PL_q7_UPhMaooQo&start=90&sa=N&sstk=Af77f_dA2uyT59zUJYpx8SdA-zY5KbLSvoytcaR6kmS3FZjZfzfaPoLY6lbh5MisjpQuKtRJj4nd8WsUnyq3gRdv1mYUpPTD8GLkOw&ved=2ahUKEwiBo83Mn5-RAxU_9bsIHQQjKqQQ8tMDegQIKBAU"
-          }
-        ],
-        "api_pagination": {
-          "next": "https://api.valueserp.com/search?api_key=BC0DE78CDA224510AEA6645023C80284&q=Habit%20Tracker%20Notion%20Template&gl=us&hl=en&google_domain=google.com&include_ai_overview=true&include_answer_box=true&max_page=2&id=req0&antiBlockConfig=%5Bobject%20Object%5D&page=2",
-          "other_pages": [
-            {
-              "page": 2,
-              "link": "https://api.valueserp.com/search?api_key=BC0DE78CDA224510AEA6645023C80284&q=Habit%20Tracker%20Notion%20Template&gl=us&hl=en&google_domain=google.com&include_ai_overview=true&include_answer_box=true&max_page=2&id=req0&antiBlockConfig=%5Bobject%20Object%5D&page=2"
-            },
-            {
-              "page": 3,
-              "link": "https://api.valueserp.com/search?api_key=BC0DE78CDA224510AEA6645023C80284&q=Habit%20Tracker%20Notion%20Template&gl=us&hl=en&google_domain=google.com&include_ai_overview=true&include_answer_box=true&max_page=2&id=req0&antiBlockConfig=%5Bobject%20Object%5D&page=3"
-            },
-            {
-              "page": 4,
-              "link": "https://api.valueserp.com/search?api_key=BC0DE78CDA224510AEA6645023C80284&q=Habit%20Tracker%20Notion%20Template&gl=us&hl=en&google_domain=google.com&include_ai_overview=true&include_answer_box=true&max_page=2&id=req0&antiBlockConfig=%5Bobject%20Object%5D&page=4"
-            },
-            {
-              "page": 5,
-              "link": "https://api.valueserp.com/search?api_key=BC0DE78CDA224510AEA6645023C80284&q=Habit%20Tracker%20Notion%20Template&gl=us&hl=en&google_domain=google.com&include_ai_overview=true&include_answer_box=true&max_page=2&id=req0&antiBlockConfig=%5Bobject%20Object%5D&page=5"
-            },
-            {
-              "page": 6,
-              "link": "https://api.valueserp.com/search?api_key=BC0DE78CDA224510AEA6645023C80284&q=Habit%20Tracker%20Notion%20Template&gl=us&hl=en&google_domain=google.com&include_ai_overview=true&include_answer_box=true&max_page=2&id=req0&antiBlockConfig=%5Bobject%20Object%5D&page=6"
-            },
-            {
-              "page": 7,
-              "link": "https://api.valueserp.com/search?api_key=BC0DE78CDA224510AEA6645023C80284&q=Habit%20Tracker%20Notion%20Template&gl=us&hl=en&google_domain=google.com&include_ai_overview=true&include_answer_box=true&max_page=2&id=req0&antiBlockConfig=%5Bobject%20Object%5D&page=7"
-            },
-            {
-              "page": 8,
-              "link": "https://api.valueserp.com/search?api_key=BC0DE78CDA224510AEA6645023C80284&q=Habit%20Tracker%20Notion%20Template&gl=us&hl=en&google_domain=google.com&include_ai_overview=true&include_answer_box=true&max_page=2&id=req0&antiBlockConfig=%5Bobject%20Object%5D&page=8"
-            },
-            {
-              "page": 9,
-              "link": "https://api.valueserp.com/search?api_key=BC0DE78CDA224510AEA6645023C80284&q=Habit%20Tracker%20Notion%20Template&gl=us&hl=en&google_domain=google.com&include_ai_overview=true&include_answer_box=true&max_page=2&id=req0&antiBlockConfig=%5Bobject%20Object%5D&page=9"
-            },
-            {
-              "page": 10,
-              "link": "https://api.valueserp.com/search?api_key=BC0DE78CDA224510AEA6645023C80284&q=Habit%20Tracker%20Notion%20Template&gl=us&hl=en&google_domain=google.com&include_ai_overview=true&include_answer_box=true&max_page=2&id=req0&antiBlockConfig=%5Bobject%20Object%5D&page=10"
-            }
-          ]
-        },
-        "from_sticky_session": true
-      },
-      {
-        "current": 2,
-        "next": "https://google.com/search?q=Habit+Tracker+Notion+Template&sca_esv=65d22011d5166a01&gl=us&hl=en&ei=bgkvaeaDJreD9u8P3NaAmA4&start=20&sa=N&sstk=Af77f_eFZKVsAhGpqtW7LYUCiyTrrgz-wDe_nPDde0YRsf-YpN3QJxkoJNFjPlErT056UQYQR4De5lpy6XtWqk6piHf9Glbq3o1K9ojzdKQbPjfs5KzJo1U77BX9IYsn90pd&ved=2ahUKEwjm8rDNn5-RAxW3gf0HHVwrAOM4ChDw0wN6BAgJEBc",
-        "other_pages": [
-          {
-            "page": 1,
-            "link": "https://google.com/search?q=Habit+Tracker+Notion+Template&sca_esv=65d22011d5166a01&gl=us&hl=en&ei=bgkvaeaDJreD9u8P3NaAmA4&start=0&sa=N&sstk=Af77f_eFZKVsAhGpqtW7LYUCiyTrrgz-wDe_nPDde0YRsf-YpN3QJxkoJNFjPlErT056UQYQR4De5lpy6XtWqk6piHf9Glbq3o1K9ojzdKQbPjfs5KzJo1U77BX9IYsn90pd&ved=2ahUKEwjm8rDNn5-RAxW3gf0HHVwrAOM4ChDy0wN6BAgJEAQ"
-          },
-          {
-            "page": 3,
-            "link": "https://google.com/search?q=Habit+Tracker+Notion+Template&sca_esv=65d22011d5166a01&gl=us&hl=en&ei=bgkvaeaDJreD9u8P3NaAmA4&start=20&sa=N&sstk=Af77f_eFZKVsAhGpqtW7LYUCiyTrrgz-wDe_nPDde0YRsf-YpN3QJxkoJNFjPlErT056UQYQR4De5lpy6XtWqk6piHf9Glbq3o1K9ojzdKQbPjfs5KzJo1U77BX9IYsn90pd&ved=2ahUKEwjm8rDNn5-RAxW3gf0HHVwrAOM4ChDy0wN6BAgJEAc"
-          },
-          {
-            "page": 4,
-            "link": "https://google.com/search?q=Habit+Tracker+Notion+Template&sca_esv=65d22011d5166a01&gl=us&hl=en&ei=bgkvaeaDJreD9u8P3NaAmA4&start=30&sa=N&sstk=Af77f_eFZKVsAhGpqtW7LYUCiyTrrgz-wDe_nPDde0YRsf-YpN3QJxkoJNFjPlErT056UQYQR4De5lpy6XtWqk6piHf9Glbq3o1K9ojzdKQbPjfs5KzJo1U77BX9IYsn90pd&ved=2ahUKEwjm8rDNn5-RAxW3gf0HHVwrAOM4ChDy0wN6BAgJEAk"
-          },
-          {
-            "page": 5,
-            "link": "https://google.com/search?q=Habit+Tracker+Notion+Template&sca_esv=65d22011d5166a01&gl=us&hl=en&ei=bgkvaeaDJreD9u8P3NaAmA4&start=40&sa=N&sstk=Af77f_eFZKVsAhGpqtW7LYUCiyTrrgz-wDe_nPDde0YRsf-YpN3QJxkoJNFjPlErT056UQYQR4De5lpy6XtWqk6piHf9Glbq3o1K9ojzdKQbPjfs5KzJo1U77BX9IYsn90pd&ved=2ahUKEwjm8rDNn5-RAxW3gf0HHVwrAOM4ChDy0wN6BAgJEAs"
-          },
-          {
-            "page": 6,
-            "link": "https://google.com/search?q=Habit+Tracker+Notion+Template&sca_esv=65d22011d5166a01&gl=us&hl=en&ei=bgkvaeaDJreD9u8P3NaAmA4&start=50&sa=N&sstk=Af77f_eFZKVsAhGpqtW7LYUCiyTrrgz-wDe_nPDde0YRsf-YpN3QJxkoJNFjPlErT056UQYQR4De5lpy6XtWqk6piHf9Glbq3o1K9ojzdKQbPjfs5KzJo1U77BX9IYsn90pd&ved=2ahUKEwjm8rDNn5-RAxW3gf0HHVwrAOM4ChDy0wN6BAgJEA0"
-          },
-          {
-            "page": 7,
-            "link": "https://google.com/search?q=Habit+Tracker+Notion+Template&sca_esv=65d22011d5166a01&gl=us&hl=en&ei=bgkvaeaDJreD9u8P3NaAmA4&start=60&sa=N&sstk=Af77f_eFZKVsAhGpqtW7LYUCiyTrrgz-wDe_nPDde0YRsf-YpN3QJxkoJNFjPlErT056UQYQR4De5lpy6XtWqk6piHf9Glbq3o1K9ojzdKQbPjfs5KzJo1U77BX9IYsn90pd&ved=2ahUKEwjm8rDNn5-RAxW3gf0HHVwrAOM4ChDy0wN6BAgJEA8"
-          },
-          {
-            "page": 8,
-            "link": "https://google.com/search?q=Habit+Tracker+Notion+Template&sca_esv=65d22011d5166a01&gl=us&hl=en&ei=bgkvaeaDJreD9u8P3NaAmA4&start=70&sa=N&sstk=Af77f_eFZKVsAhGpqtW7LYUCiyTrrgz-wDe_nPDde0YRsf-YpN3QJxkoJNFjPlErT056UQYQR4De5lpy6XtWqk6piHf9Glbq3o1K9ojzdKQbPjfs5KzJo1U77BX9IYsn90pd&ved=2ahUKEwjm8rDNn5-RAxW3gf0HHVwrAOM4ChDy0wN6BAgJEBE"
-          },
-          {
-            "page": 9,
-            "link": "https://google.com/search?q=Habit+Tracker+Notion+Template&sca_esv=65d22011d5166a01&gl=us&hl=en&ei=bgkvaeaDJreD9u8P3NaAmA4&start=80&sa=N&sstk=Af77f_eFZKVsAhGpqtW7LYUCiyTrrgz-wDe_nPDde0YRsf-YpN3QJxkoJNFjPlErT056UQYQR4De5lpy6XtWqk6piHf9Glbq3o1K9ojzdKQbPjfs5KzJo1U77BX9IYsn90pd&ved=2ahUKEwjm8rDNn5-RAxW3gf0HHVwrAOM4ChDy0wN6BAgJEBM"
-          },
-          {
-            "page": 10,
-            "link": "https://google.com/search?q=Habit+Tracker+Notion+Template&sca_esv=65d22011d5166a01&gl=us&hl=en&ei=bgkvaeaDJreD9u8P3NaAmA4&start=90&sa=N&sstk=Af77f_eFZKVsAhGpqtW7LYUCiyTrrgz-wDe_nPDde0YRsf-YpN3QJxkoJNFjPlErT056UQYQR4De5lpy6XtWqk6piHf9Glbq3o1K9ojzdKQbPjfs5KzJo1U77BX9IYsn90pd&ved=2ahUKEwjm8rDNn5-RAxW3gf0HHVwrAOM4ChDy0wN6BAgJEBU"
-          }
-        ],
-        "api_pagination": {
-          "next": "https://api.valueserp.com/search?api_key=BC0DE78CDA224510AEA6645023C80284&q=Habit%20Tracker%20Notion%20Template&gl=us&hl=en&google_domain=google.com&include_ai_overview=true&include_answer_box=true&antiBlockConfig=%5Bobject%20Object%5D&include_html=true&output=json&page=3",
-          "other_pages": [
-            {
-              "page": 1,
-              "link": "https://api.valueserp.com/search?api_key=BC0DE78CDA224510AEA6645023C80284&q=Habit%20Tracker%20Notion%20Template&gl=us&hl=en&google_domain=google.com&include_ai_overview=true&include_answer_box=true&antiBlockConfig=%5Bobject%20Object%5D&include_html=true&output=json&page=1"
-            },
-            {
-              "page": 3,
-              "link": "https://api.valueserp.com/search?api_key=BC0DE78CDA224510AEA6645023C80284&q=Habit%20Tracker%20Notion%20Template&gl=us&hl=en&google_domain=google.com&include_ai_overview=true&include_answer_box=true&antiBlockConfig=%5Bobject%20Object%5D&include_html=true&output=json&page=3"
-            },
-            {
-              "page": 4,
-              "link": "https://api.valueserp.com/search?api_key=BC0DE78CDA224510AEA6645023C80284&q=Habit%20Tracker%20Notion%20Template&gl=us&hl=en&google_domain=google.com&include_ai_overview=true&include_answer_box=true&antiBlockConfig=%5Bobject%20Object%5D&include_html=true&output=json&page=4"
-            },
-            {
-              "page": 5,
-              "link": "https://api.valueserp.com/search?api_key=BC0DE78CDA224510AEA6645023C80284&q=Habit%20Tracker%20Notion%20Template&gl=us&hl=en&google_domain=google.com&include_ai_overview=true&include_answer_box=true&antiBlockConfig=%5Bobject%20Object%5D&include_html=true&output=json&page=5"
-            },
-            {
-              "page": 6,
-              "link": "https://api.valueserp.com/search?api_key=BC0DE78CDA224510AEA6645023C80284&q=Habit%20Tracker%20Notion%20Template&gl=us&hl=en&google_domain=google.com&include_ai_overview=true&include_answer_box=true&antiBlockConfig=%5Bobject%20Object%5D&include_html=true&output=json&page=6"
-            },
-            {
-              "page": 7,
-              "link": "https://api.valueserp.com/search?api_key=BC0DE78CDA224510AEA6645023C80284&q=Habit%20Tracker%20Notion%20Template&gl=us&hl=en&google_domain=google.com&include_ai_overview=true&include_answer_box=true&antiBlockConfig=%5Bobject%20Object%5D&include_html=true&output=json&page=7"
-            },
-            {
-              "page": 8,
-              "link": "https://api.valueserp.com/search?api_key=BC0DE78CDA224510AEA6645023C80284&q=Habit%20Tracker%20Notion%20Template&gl=us&hl=en&google_domain=google.com&include_ai_overview=true&include_answer_box=true&antiBlockConfig=%5Bobject%20Object%5D&include_html=true&output=json&page=8"
-            },
-            {
-              "page": 9,
-              "link": "https://api.valueserp.com/search?api_key=BC0DE78CDA224510AEA6645023C80284&q=Habit%20Tracker%20Notion%20Template&gl=us&hl=en&google_domain=google.com&include_ai_overview=true&include_answer_box=true&antiBlockConfig=%5Bobject%20Object%5D&include_html=true&output=json&page=9"
-            },
-            {
-              "page": 10,
-              "link": "https://api.valueserp.com/search?api_key=BC0DE78CDA224510AEA6645023C80284&q=Habit%20Tracker%20Notion%20Template&gl=us&hl=en&google_domain=google.com&include_ai_overview=true&include_answer_box=true&antiBlockConfig=%5Bobject%20Object%5D&include_html=true&output=json&page=10"
-            }
-          ]
-        },
-        "from_sticky_session": true
-      }
-    ]
-  }
-};
-
-
-// ==========================================
-// 1. HELPER FUNCTIONS
-// ==========================================
 
 const COUNTRY_MAP = COUNTRIES.reduce((acc, curr) => {
     let hl = 'en';
@@ -562,99 +42,88 @@ function extractMetaFromOrganic(item: any): string {
         return item.displayed_link;
     }
     const extensions = item.rich_snippet?.top?.extensions || [];
-    const commentExt = extensions.find((e: string) => 
+    const commentExt = extensions.find((e: string) =>
         e.toLowerCase().includes('answer') || e.toLowerCase().includes('comment')
     );
     return commentExt || `Rank #${item.position}`;
 }
 
 // ==========================================
-// 2. DOMAIN & PRODUCT CATEGORIZATION
+// 2. CORE CLASSIFICATION LOGIC (CLEAN & OPTIMIZED)
 // ==========================================
 
-// Phân loại Domain để tìm Weak Spot (cho Sidebar)
-function categorizeDomain(domain: string, title: string): { type: string, isWeak: boolean, scoreCategory: 'ULTRA' | 'WEAK' | 'HARD' | 'NORMAL' } {
-    // Fallback an toàn tránh lỗi undefined
-    const d = (domain || '').toLowerCase();
-    const t = (title || '').toLowerCase();
-    
-    const checkList = (keywords: string[]) => keywords.some(k => d.includes(k.toLowerCase()));
-
-    if (checkList(DOMAIN_KS.PUBLIC_DOCS) || t.includes('.pdf') || t.includes('.doc') || t.includes('sheet')) {
-        return { type: 'Public Doc', isWeak: true, scoreCategory: 'ULTRA' };
+// Phân loại Domain dựa trên Config trong constants.ts
+function getDomainCategory(domain: string): keyof typeof DOMAIN_CATEGORIES | 'UNKNOWN' {
+    const d = domain.toLowerCase();
+    for (const [category, keywords] of Object.entries(DOMAIN_CATEGORIES)) {
+        if (keywords.some(k => d.includes(k))) {
+            return category as keyof typeof DOMAIN_CATEGORIES;
+        }
     }
-    if (checkList(DOMAIN_KS.SOCIAL_FORUMS)) {
-        return { type: 'Community', isWeak: true, scoreCategory: 'WEAK' };
-    }
-    if (checkList(DOMAIN_KS.REVIEW_GIANTS)) {
-        return { type: 'Review Giant', isWeak: false, scoreCategory: 'HARD' };
-    }
-    if (checkList(DOMAIN_KS.TECH_GIANTS)) {
-        return { type: 'Tech Repo', isWeak: false, scoreCategory: 'HARD' };
-    }
-    return { type: 'Web/Blog', isWeak: false, scoreCategory: 'NORMAL' };
+    return 'UNKNOWN';
 }
 
-// Nhận diện loại Item (App, Template hay Resource)
-function detectItemType(title: string, snippet: string): { type: 'app' | 'template' | 'resource', cta: string } | null {
-    const t = (title || '').toLowerCase();
-    const s = (snippet || '').toLowerCase();
-    const text = t + " " + s;
+// Nhận diện loại sản phẩm (App/Template) từ ngữ cảnh
+function identifyProductType(text: string): { type: 'app' | 'template', cta: string } | null {
+    const t = text.toLowerCase();
 
-    // 1. Nhóm Template / Digital Asset
-    if (text.includes('template') || text.includes('theme') || text.includes('kit') || text.includes('preset')) {
-        return { type: 'template', cta: 'Get Template' };
+    // 1. Ưu tiên check Template (cụ thể hơn)
+    if (PRODUCT_INTENT.TEMPLATE.some(k => t.includes(k))) {
+        return { type: 'template', cta: 'View Template' };
     }
 
-    // 2. Nhóm SaaS / App / Software
-    if (text.includes('software') || text.includes('app') || text.includes('tool') || text.includes('platform') || text.includes('download') || text.includes('pricing')) {
+    // 2. Check App / Software
+    if (PRODUCT_INTENT.APP.some(k => t.includes(k))) {
         return { type: 'app', cta: 'Get App' };
     }
 
-    // 3. Trả về null để fallback sau này
     return null;
 }
 
 // ==========================================
-// 3. MARKET ANALYSIS LOGIC
+// 3. MARKET ANALYSIS LOGIC (USER-CENTRIC)
 // ==========================================
 
 function analyzeMarket(apps: AppItem[], seedingTargets: SeedingTarget[]): Verdict {
     let opportunityScore = 0;
-    
-    // Nhiều đất diễn cho seeding (Forum/Reddit) -> Tốt cho Dev
+
+    // Logic tính điểm: Nhiều thảo luận -> Nhu cầu cao
     if (seedingTargets.length >= 3) opportunityScore += 40;
     else if (seedingTargets.length >= 1) opportunityScore += 15;
 
-    // Ít App xịn chiếm sóng -> Cơ hội build app mới
-    // (Đếm số lượng app thực sự, không tính resource/guide)
+    // Logic cung cầu: Ít App xịn -> Cơ hội cao
     const realAppsCount = apps.filter(a => a.type === 'app').length;
     if (realAppsCount < 5) opportunityScore += 20;
 
+    // VERDICT: Ngôn ngữ thân thiện với End-user
     if (opportunityScore >= 40) {
         return {
-            status: "SEO Goldmine",
-            title: "BUILD IMMEDIATELY",
-            description: `<b>High Demand, Low Supply.</b> Search results are filled with forums and discussions. Users are looking for a solution but haven't found a dominant tool yet.`,
+            status: "High Demand",
+            title: "Underserved Market",
+            description: `<b>High Interest, Low Supply.</b> Search results are filled with questions and forums. Users are actively looking for a better solution but haven't found a dominant tool yet.`,
             color: "green"
         };
     }
 
     if (opportunityScore >= 15) {
-         return {
-            status: "Seeding Gap",
-            title: "HIJACK TRAFFIC",
-            description: `<b>Good Entry Point.</b> Established competitors exist, but users are still actively discussing this on Reddit/Quora. <i>Strategy: Build a better tool and seed it in these discussions.</i>`,
+        return {
+            status: "Community Buzz",
+            title: "Active Discussions",
+            description: `<b>Good Engagement.</b> Established tools exist, but users are still actively discussing features and problems on Reddit/Quora. <i>A sign of an engaged user base.</i>`,
             color: "yellow"
         };
     }
 
     return {
-        status: "Competitive",
-        title: "UPHILL BATTLE",
-        description: `<b>Saturated Market.</b> The results are dominated by big brands and tools. Hard to SEO directly.`,
+        status: "Well Established",
+        title: "Saturated Market",
+        description: `<b>Many Options Available.</b> The results are dominated by big brands and popular tools. Users have plenty of high-quality choices.`,
         color: "red"
     };
+}
+
+function sleep(ms: number) {
+    return new Promise(resolve => setTimeout(resolve, ms));
 }
 
 // ==========================================
@@ -665,159 +134,190 @@ export const load: PageServerLoad = async ({ params }) => {
     const countryCode = params.country.toLowerCase();
     const rawKeyword = params.keyword;
     const readableKeyword = unslugify(rawKeyword);
+    const docId = `${countryCode}_${rawKeyword}`;
 
     const metaData = {
         keyword: readableKeyword,
         slug: rawKeyword,
         country: countryCode.toUpperCase(),
-        metaTitle: `Best ${readableKeyword} Tools & Analysis`,
-        metaDesc: `Discover the best tools for ${readableKeyword}. Market analysis and opportunities for indie builders.`,
+        metaTitle: `Best ${readableKeyword} Tools & Resources (2025)`,
+        metaDesc: `Discover the top-rated tools for ${readableKeyword}. Curated list of apps, templates, and community discussions.`,
     };
+
+
 
     const loadAnalysisData = async (): Promise<AnalysisResult> => {
         const config = COUNTRY_MAP[countryCode] || COUNTRY_MAP['us'];
-        const url = new URL('https://api.valueserp.com/search');
-        
-        url.searchParams.append('api_key', PRIVATE_VALUESERP_API_KEY);
-        url.searchParams.append('q', readableKeyword);
-        url.searchParams.append('gl', config.gl);
-        url.searchParams.append('hl', 'en');
-        url.searchParams.append('google_domain', config.google_domain);
-        url.searchParams.append('include_answer_box', 'true');
-        url.searchParams.append('include_ai_overview', 'true');
-        url.searchParams.append('max_page', '1');
+        let rawData: RawApiResponse | null = null;
 
         try {
-            // const res = await fetch(url.toString());
-            // if (!res.ok) throw new Error(`ValueSERP API Error: ${res.statusText}`);
-            
-            // const apiData: RawApiResponse = await res.json();
+            const docRef = adminDB.collection('analysis').doc(docId);
+            const docSnap = await docRef.get();
 
-            // if (apiData.request_info && apiData.request_info.success === false) {
-            //      console.error("API Logic Error:", apiData.request_info.message);
-            // }
+            if (docSnap.exists) {
+                const data = docSnap.data();
+                if (data?.raw_response) {
+                    rawData = typeof data.raw_response === 'string'
+                        ? JSON.parse(data.raw_response)
+                        : data.raw_response;
+                    console.log('⚡ HIT CACHE:', docId);
+                }
+            }
+        } catch (e) { console.error('DB Error:', e); }
 
-            const organicResults = apiData.organic_results || [];
-            
-            const apps: AppItem[] = [];
-            const seedingTargets: SeedingTarget[] = [];
-            const addedUrls = new Set<string>();
+        if (!rawData) {
+            try {
+                const url = new URL('https://api.valueserp.com/search');
+                url.searchParams.append('api_key', PRIVATE_VALUESERP_API_KEY);
+                url.searchParams.append('q', readableKeyword);
+                url.searchParams.append('gl', config.gl);
+                url.searchParams.append('hl', 'en');
+                url.searchParams.append('google_domain', config.google_domain);
+                url.searchParams.append('include_answer_box', 'true');
+                url.searchParams.append('include_ai_overview', 'true');
+                url.searchParams.append('max_page', '2');
+                const res = await fetch(url.toString());
+                if (!res.ok) throw new Error(`API Error`);
+                rawData = await res.json();
 
-            // --- BƯỚC 1: QUÉT LẦN ĐẦU (Tách Apps vs Seeding Targets) ---
-            organicResults.forEach(item => {
-                if (!item.link || addedUrls.has(item.link)) return;
+                saveRawToFirebase(docId, rawData!, {
+                    keyword: readableKeyword,
+                    slug: rawKeyword,
+                    country: countryCode
+                });
 
-                const domain = item.domain || '';
-                const title = item.title || '';
-                const snippet = item.snippet || '';
-                
-                const { isWeak } = categorizeDomain(domain, title);
-                const brandName = getBrandName(domain);
+            } catch (error) {
+                console.error("Analysis Error:", error);
+                return {
+                    verdict: { status: "Error", title: "Data Unavailable", description: "Could not fetch data.", color: "red" },
+                    apps: [],
+                    seedingTargets: [],
+                    pivotIdeas: []
+                };
+            }
+        }
 
-                // A. Sidebar Data: Weak Spots (Forum, Reddit, Social)
-                if (isWeak) {
+        const organicResults = rawData?.organic_results || [];
+
+        const apps: AppItem[] = [];
+        const seedingTargets: SeedingTarget[] = [];
+        const addedUrls = new Set<string>();
+
+        // --- BƯỚC 1: QUÉT & PHÂN LOẠI THÔNG MINH ---
+        organicResults.forEach(item => {
+            if (!item.link || addedUrls.has(item.link)) return;
+
+            const domain = item.domain || '';
+            const title = item.title || '';
+            const snippet = item.snippet || '';
+            const fullText = `${title} ${snippet}`;
+            const brandName = getBrandName(domain);
+
+            // 1. Xác định Category của Domain
+            const category = getDomainCategory(domain);
+
+            // 2. Xử lý theo từng nhóm
+            switch (category) {
+                // A. Nhóm Community / Seeding -> Vào cột phải (Community Discussions)
+                case 'FORUM':
+                case 'PUBLIC_DOC': // Doc public cũng là nguồn thảo luận/tham khảo tốt
                     seedingTargets.push({
                         source: brandName,
                         title: title,
                         url: item.link,
                         meta: extractMetaFromOrganic(item),
-                        isHijackable: true
+                        isHijackable: true // Mặc định nhóm này là "Hot Topic"
                     });
                     addedUrls.add(item.link);
-                } 
-                // B. Main Grid Data: Product Detection
-                else {
-                    // Loại bỏ báo chí lớn (chỉ dùng làm fallback)
-                    const NEWS_SITES = ['nytimes.com', 'forbes.com', 'wsj.com', 'wikipedia.org', 'cafebiz.vn', 'vnexpress.net'];
-                    const isNews = NEWS_SITES.some(n => domain.toLowerCase().includes(n));
+                    break;
 
-                    if (!isNews) {
-                        const detected = detectItemType(title, snippet);
-                        
-                        if (detected) {
-                            apps.push({
-                                name: brandName,
-                                domain: domain,
-                                url: item.link,
-                                description: snippet,
-                                tags: [detected.type === 'app' ? 'Software' : 'Template'],
-                                type: detected.type,
-                                ctaText: detected.cta
-                            });
-                            addedUrls.add(item.link);
-                        }
-                    }
-                }
-            });
+                // B. Nhóm Rác / Báo chí / Review Site to -> Bỏ qua (Để tránh loãng AppGrid)
+                case 'NEWS':
+                case 'REVIEW':
+                case 'TECH':
+                    // Chỉ dùng Tech nếu muốn target dev sâu, còn user thường thì bỏ qua
+                    break;
 
-            // --- BƯỚC 2: FALLBACK STRATEGY ---
-            // Nếu tìm được quá ít App/Template (dưới 3), lấy thêm các bài Blog/Resource tốt nhất
-            if (apps.length < 3) {
-                organicResults.forEach(item => {
-                    if (apps.length >= 10) return; // Chỉ lấy tối đa 10 items
-                    if (!item.link || addedUrls.has(item.link)) return;
+                // C. Nhóm Unknown (Web/Blog/SaaS) -> Phân tích xem có phải App/Template không
+                default:
+                    const productInfo = identifyProductType(fullText);
 
-                    const domain = item.domain || '';
-                    const title = item.title || '';
-                    const snippet = item.snippet || '';
-
-                    // Chỉ lấy những trang KHÔNG PHẢI Weak Spot (vì Weak Spot đã ở Sidebar)
-                    const { isWeak } = categorizeDomain(domain, title);
-                    
-                    if (!isWeak) {
+                    if (productInfo) {
                         apps.push({
-                            name: getBrandName(domain),
+                            name: brandName,
                             domain: domain,
                             url: item.link,
                             description: snippet,
-                            tags: ['Guide'],
-                            type: 'resource', // Đánh dấu là Resource/Guide
-                            ctaText: 'Read Guide'
+                            tags: [productInfo.type === 'app' ? 'Software' : 'Template'],
+                            type: productInfo.type,
+                            ctaText: productInfo.cta
                         });
                         addedUrls.add(item.link);
                     }
-                });
+                    break;
             }
+        });
 
-            // --- BƯỚC 3: LẤY THÊM SEEDING TỪ 'Discussions' BOX ---
-            if (apiData.discussions_and_forums) {
-                apiData.discussions_and_forums.forEach(d => {
-                    if (d.link && !addedUrls.has(d.link)) {
-                        seedingTargets.push({
-                            source: d.source?.source_title || 'Forum',
-                            title: d.discussion_title || 'Discussion',
-                            url: d.link,
-                            meta: 'Active Thread',
-                            isHijackable: true
-                        });
-                        addedUrls.add(d.link);
-                    }
-                });
-            }
+        // --- BƯỚC 2: FALLBACK STRATEGY (LẤY RESOURCE) ---
+        // Nếu tìm được quá ít App (dưới 3), lấy thêm các bài Blog/Guide tốt nhất từ nhóm Unknown
+        if (apps.length < 3) {
+            organicResults.forEach(item => {
+                if (apps.length >= 10 || addedUrls.has(item.link)) return;
 
-            // --- BƯỚC 4: PIVOT IDEAS (Related Searches) ---
-            let rawIdeas: string[] = [];
-            if (apiData.related_searches) {
-                rawIdeas.push(...apiData.related_searches.map(s => s.query));
-            }
-            if (apiData.related_questions) {
-                rawIdeas.push(...apiData.related_questions.map(q => q.question));
-            }
-            
-            const pivotIdeas = [...new Set(rawIdeas)]
-                .filter(str => str && str.length < 70 && str.length > 5)
-                .slice(0, 8);
+                const category = getDomainCategory(item.domain || '');
 
-            // Tính toán Verdict cuối cùng
-            const verdict = analyzeMarket(apps, seedingTargets);
-
-            return { verdict, apps, seedingTargets, pivotIdeas };
-
-        } catch (error) {
-            console.error("Analysis Error:", error);
-            // Có thể return data rỗng để UI không crash hoàn toàn
-            throw error;
+                // Chỉ lấy những trang KHÔNG PHẢI Báo chí/Review/Forum (đã lọc ở trên)
+                if (category === 'UNKNOWN') {
+                    apps.push({
+                        name: getBrandName(item.domain || ''),
+                        domain: item.domain || '',
+                        url: item.link,
+                        description: item.snippet || '',
+                        tags: ['Guide'],
+                        type: 'resource', // Đánh dấu là Resource/Guide
+                        ctaText: 'Read Guide'
+                    });
+                    addedUrls.add(item.link);
+                }
+            });
         }
+
+        // --- BƯỚC 3: LẤY THÊM TỪ 'Discussions' BOX (Google Feature) ---
+        if (rawData?.discussions_and_forums) {
+            rawData.discussions_and_forums.forEach(d => {
+                if (d.link && !addedUrls.has(d.link)) {
+                    seedingTargets.push({
+                        source: d.source?.source_title || 'Forum',
+                        title: d.discussion_title || 'Discussion',
+                        url: d.link,
+                        meta: 'Active Thread',
+                        isHijackable: true
+                    });
+                    addedUrls.add(d.link);
+                }
+            });
+        }
+
+        // --- BƯỚC 4: PIVOT IDEAS (Related Searches) ---
+        let rawIdeas: string[] = [];
+        if (rawData?.related_searches) {
+            rawIdeas.push(...rawData.related_searches.map(s => s.query));
+        }
+        if (rawData?.related_questions) {
+            rawIdeas.push(...rawData.related_questions.map(q => q.question));
+        }
+
+        const apiPivotIdeas = [...new Set(rawIdeas)]
+            .filter(str => str && str.length < 70 && str.length > 5)
+            .slice(0, 8);
+
+        const pivotIdeas = await getKeywordIdeas(apiPivotIdeas, countryCode, readableKeyword);
+
+        // Tính toán Verdict cuối cùng
+        const verdict = analyzeMarket(apps, seedingTargets);
+
+        return { verdict, apps, seedingTargets, pivotIdeas };
+
     };
 
     return {
@@ -825,4 +325,43 @@ export const load: PageServerLoad = async ({ params }) => {
         streamed: loadAnalysisData()
     };
 };
+
+async function getKeywordIdeas(apiKeywordIdeas: string[], countryCode: string, readableKeyword: string): Promise<string[]> {
+    const linksSnap = await adminDB.collection('analysis')
+        .where('country', '==', countryCode)
+        .orderBy('created_at', 'desc')
+        .limit(20)
+        .select('keyword')
+        .get();
+
+    const dbKeywords = linksSnap.docs
+        .map(d => d.data().keyword)
+        .filter(k => k && k !== readableKeyword);
+
+    if (dbKeywords.length > 0) {
+        return dbKeywords.sort(() => 0.5 - Math.random()).slice(0, 10);
+    }
+    return apiKeywordIdeas;
+}
+
+
+async function saveRawToFirebase(docId: string, rawData: RawApiResponse, meta: { keyword: string, slug: string, country: string }) {
+    try {
+        const record = {
+            keyword: meta.keyword,
+            slug: meta.slug,
+            country: meta.country,
+            created_at: Timestamp.now(),
+            raw_response: JSON.stringify(rawData)
+        };
+
+        // Dùng .set() để ghi đè (hoặc tạo mới) document theo ID định sẵn
+        await adminDB.collection('analysis').doc(docId).set(record);
+        
+        console.log('✅ Saved raw data to DB:', docId);
+    } catch (error) {
+        // Chỉ log lỗi, không throw để tránh làm chết luồng trả về cho user
+        console.error('🔥 Firebase Save Error:', error);
+    }
+}
 

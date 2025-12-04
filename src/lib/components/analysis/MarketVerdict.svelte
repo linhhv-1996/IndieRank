@@ -40,7 +40,7 @@
 <section class="bento-card p-5 relative overflow-hidden group"> <div class="absolute top-0 right-0 w-48 h-48 rounded-full blur-3xl -mr-24 -mt-24 pointer-events-none transition-colors duration-500 {styles.glow}"></div>
 
     <div class="relative z-10 space-y-3"> <div class="flex items-center justify-between">
-            <h3 class="text-[10px] font-mono text-subtle uppercase tracking-widest">Market Verdict</h3>
+            <h3 class="text-[10px] font-mono text-subtle uppercase tracking-widest">Market Snapshot</h3>
             <span class="px-2 py-0.5 border text-[9px] font-mono rounded-full uppercase transition-colors font-semibold {styles.border} {styles.bg} {styles.text}">
                 {verdict.status}
             </span>

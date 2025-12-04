@@ -1,26 +1,41 @@
-export const DOMAIN_KS = {
-    // UGC/Forums: Rank đè được nếu content tốt, hoặc vào seeding (High Opportunity)
-    SOCIAL_FORUMS: [
+// src/lib/constants.ts
+
+export const DOMAIN_CATEGORIES = {
+    // Seeding / Community (Weak Spot cũ)
+    FORUM: [
         'reddit', 'quora', 'indiehackers', 'ycombinator', 
         'medium', 'dev.to', 'hashnode', 'producthunt', 
         'facebook', 'twitter', 'linkedin', 'pinterest',
-        'tiktok', 'youtube', 'instagram', 'stackexchange', 'stackoverflow'
+        'tiktok', 'youtube', 'instagram', 'stackexchange', 'stackoverflow',
+        'discord', 'slack'
     ],
     
-    // Public Docs: Google "đói" content nên mới lôi mấy cái này lên (Ultra High Opportunity)
-    PUBLIC_DOCS: [
+    // Tài liệu công khai (Cơ hội cao)
+    PUBLIC_DOC: [
         'docs.google.com', 'notion.site', 'dropbox.com', 'drive.google.com',
-        'loom.com', 'trello.com', 'canva.com' // Canva view only links
+        'loom.com', 'trello.com', 'canva.com'
     ],
 
-    // Review Giants: Bọn này Domain Authority cực cao, content dày (Run Away)
-    REVIEW_GIANTS: [
+    // Đối thủ lớn (Khó nhai - nên né hoặc chỉ tham khảo)
+    REVIEW: [
         'g2.com', 'capterra', 'trustradius', 'softwareadvice', 
         'getapp', 'trustpilot', 'financesonline', 'featuredcustomers', 'forbes.com'
     ],
 
-    // Tech Giants: Github, NPM (Chỉ nên coi là tham khảo, khó beat nếu keyword là tên lib)
-    TECH_GIANTS: [
-        'github.com', 'npmjs.com', 'pypi.org'
+    // Kho lưu trữ (Dev)
+    TECH: [
+        'github.com', 'npmjs.com', 'pypi.org', 'gitlab.com'
+    ],
+
+    // Báo chí / Tin tức (Data rác với end-user tìm tool, nên lọc bỏ)
+    NEWS: [
+        'nytimes.com', 'wsj.com', 'wikipedia.org', 'cafebiz.vn', 'vnexpress.net', 
+        'techcrunch.com', 'theverge.com', 'businessinsider.com'
     ]
+};
+
+// Từ khóa để nhận diện loại sản phẩm trong Title/Snippet
+export const PRODUCT_INTENT = {
+    TEMPLATE: ['template', 'theme', 'kit', 'preset', 'dashboard', 'boilerplate', 'starter'],
+    APP: ['software', 'app', 'tool', 'platform', 'download', 'pricing', 'generator', 'builder', 'api']
 };

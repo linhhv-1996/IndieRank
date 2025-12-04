@@ -19,6 +19,10 @@
     let country = $searchStore.country;
     let isScanning = false;
 
+    function unslugify(text: string) {
+        return text?.replace(/-/g, " ") || "";
+    }
+
     // --- Action: Click Outside ---
     function clickOutside(node: HTMLElement) {
         const handleClick = (event: MouseEvent) => {
@@ -57,6 +61,15 @@
         } catch (error) {
             console.error("Logout failed:", error);
         }
+    }
+
+    $: if ($page.params.keyword) {
+        searchInput = unslugify($page.params.keyword);
+        searchStore.update((s) => ({ ...s, keyword: searchInput }));
+    }
+
+    $: if ($page.params.country) {
+        country = $page.params.country.toLowerCase();
     }
 </script>
 
