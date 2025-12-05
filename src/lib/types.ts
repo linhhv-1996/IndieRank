@@ -9,7 +9,8 @@ export interface RawSearchResult {
     displayed_link?: string;
     rich_snippet?: {
         top?: {
-            extensions?: string[]; // "20 comments", "Free"
+            extensions?: string[]; // VD: ["4.5(2,550)", "Free", "iOS"]
+            detected_extensions?: Record<string, any>;
         };
     };
 }
@@ -50,7 +51,6 @@ export interface RawInlineVideo {
     source?: string;
 }
 
-// Bổ sung interface cho request_info
 export interface RequestInfo {
     success: boolean;
     credits_used?: number;
@@ -61,8 +61,6 @@ export interface RequestInfo {
 export interface RawApiResponse {
     request_info?: RequestInfo;
     search_parameters: { q: string; gl: string };
-    
-    // Tất cả các trường dữ liệu đều có thể thiếu
     organic_results?: RawSearchResult[];
     discussions_and_forums?: RawDiscussion[];
     ai_overview?: RawAiOverview;
@@ -72,17 +70,6 @@ export interface RawApiResponse {
 }
 
 // --- PROCESSED TYPES (Dữ liệu sạch cho Frontend) ---
-export interface SerpItem {
-    rank: string;
-    domain: string;
-    title: string;
-    url: string;
-    snippet: string;
-    tags: string[];
-    isWeakSpot: boolean;
-    scoreCategory?: 'ULTRA' | 'WEAK' | 'HARD' | 'NORMAL';
-    displayed_link: string;
-}
 
 export interface SeedingTarget {
     source: string;
@@ -99,23 +86,31 @@ export interface Verdict {
     color: 'green' | 'red' | 'yellow';
 }
 
-// Type mới cho App hiển thị ở Main Column
+// Interface App được nâng cấp
 export interface AppItem {
+    // Core Data (Luôn có)
     name: string;
     domain: string;
     url: string;
     description: string;
-    tags: string[];
-    isSponsor?: boolean;
-    // [MỚI] Để phân loại hiển thị
-    type: 'app' | 'template' | 'resource'; 
-    ctaText: string; // "Get App", "View Template", "Read Guide"
+    
+    // Phân loại
+    type: 'app' | 'template' | 'resource';
+    pricingModel: 'Free' | 'Freemium' | 'Paid' | 'Unknown';
+    features: string[]; // VD: ["iOS", "Open Source", "No Credit Card"]
+    
+    // Social Proof (Có thể null)
+    rating?: number;        // 4.5
+    reviewCount?: string;   // "2.5k"
+    
+    // UX
+    ctaText: string;        // "Get App", "Read Guide"
+    audience?: string;      // "Best for Teams", "Solo Friendly"
 }
 
 export interface AnalysisResult {
     verdict: Verdict;
-    // serpItems: SerpItem[]; // <-- Có thể bỏ hoặc giữ nếu muốn debug
-    apps: AppItem[];          // <-- MỚI: Dành cho End-user
-    seedingTargets: SeedingTarget[]; // Dành cho Sidebar (Builder)
+    apps: AppItem[];
+    seedingTargets: SeedingTarget[];
     pivotIdeas: string[];
 }
