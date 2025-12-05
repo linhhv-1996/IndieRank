@@ -28,13 +28,13 @@
     <div class="w-full max-w-custom mx-auto text-center relative z-10">
         <!-- Headline -->
         <h1 class="text-4xl md:text-5xl lg:text-6xl font-medium tracking-tight text-white mb-4 leading-tight">
-            Discover Hidden Gems
-            <span class="block text-gray-500">in Every Niche.</span>
+            AI-powered shortcuts 
+            <span class="block text-gray-500">to the best tools.</span>
         </h1>
 
         <p class="text-base md:text-lg text-subtle max-w-xl mx-auto mb-9">
-            Stop digging through SEO spam.
-            We analyze live search data to surface the best apps, templates, and authentic community discussions.
+            Search for any “online X” tool.
+We turn messy Google results into a simple buying guide with ranked tools and real links, so you can pick one and move on.
         </p>
 
         <!-- Search Input with Country -->
