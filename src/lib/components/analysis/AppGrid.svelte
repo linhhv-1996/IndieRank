@@ -5,86 +5,111 @@
 
     const getFavicon = (domain: string) => `https://www.google.com/s2/favicons?domain=${domain}&sz=64`;
     
-    // Badge style tối giản, border mỏng
+    // Đã sửa lại màu tag cho contrast tốt hơn (Đã chốt)
     const getBadgeColor = (tag: string) => {
         const t = tag.toLowerCase();
-        if (t.includes('free')) return 'text-emerald-400 border-emerald-400/20 bg-emerald-400/5';
-        if (t.includes('top rated')) return 'text-amber-400 border-amber-400/20 bg-amber-400/5';
-        if (t.includes('open source')) return 'text-purple-400 border-purple-400/20 bg-purple-400/5';
-        return 'text-zinc-400 border-zinc-700 bg-zinc-800/50';
+        if (t.includes('free')) return 'text-emerald-300 border-emerald-500/40 bg-emerald-700/25';
+        if (t.includes('top rated')) return 'text-amber-300 border-amber-500/40 bg-amber-700/25';
+        if (t.includes('open source')) return 'text-purple-300 border-purple-500/40 bg-purple-700/25';
+        return 'text-zinc-300 border-zinc-700 bg-zinc-800/80';
     };
 
     const getDisplayTags = (app: AppItem) => {
         let tags = [];
         if (app.pricingModel && app.pricingModel !== 'Unknown') tags.push(app.pricingModel);
         tags = [...tags, ...app.features];
-        return tags.slice(0, 3); // Lấy ít tag thôi cho thoáng
+        
+        if (tags.length === 0) {
+            tags.push(app.type === 'app' ? 'Software' : 'Resource');
+        }
+        
+        return tags.slice(0, 4); // Cho 4 tags để lấp đầy không gian ở dưới
     };
 </script>
 
 <div class="w-full">
-    <div class="flex items-center justify-between px-2 mb-3">
-        <h2 class="text-xs font-mono font-medium text-subtle uppercase tracking-widest">Top Recommendations</h2>
-        <span class="text-[10px] text-zinc-600 font-mono">
-            {apps.length} items
+    <div class="flex items-center justify-between px-1 mb-3">
+        <h2 class="text-[11px] font-mono font-medium text-subtle uppercase tracking-widest">
+            Top Recommendations
+        </h2>
+        <span class="text-[10px] text-zinc-500 font-mono bg-zinc-900/50 px-2 py-0.5 rounded border border-zinc-800">
+            {apps.length} Results
         </span>
     </div>
 
-    <div class="flex flex-col space-y-1">
+    <div class="flex flex-col gap-2">
         {#each apps as app}
             <a 
                 href={app.url} 
                 target="_blank" 
                 rel="noopener noreferrer" 
-                class="group relative flex items-center gap-3 p-3 rounded-lg border border-transparent hover:border-zinc-800 hover:bg-zinc-900/60 transition-all duration-200 cursor-pointer"
+                class="
+                    group relative flex flex-col gap-3 p-4 rounded-xl
+                    border border-zinc-800/60 bg-zinc-900/20 
+                    hover:bg-zinc-800/40 hover:border-zinc-700
+                    transition-all duration-200 cursor-pointer
+                "
             >
-                <div class="shrink-0 w-8 h-8 rounded-md bg-zinc-900 border border-zinc-800 flex items-center justify-center overflow-hidden group-hover:border-zinc-700 transition-colors">
-                    <img src={getFavicon(app.domain)} alt={app.name} class="w-5 h-5 object-contain opacity-80 group-hover:opacity-100 transition-opacity" />
+                
+                <div class="flex items-start justify-between gap-4">
+                    <div class="flex items-start gap-3">
+                        <div class="shrink-0 w-10 h-10 rounded-lg bg-zinc-900 border border-zinc-800/80 flex items-center justify-center overflow-hidden transition-colors shadow-sm">
+                            <img src={getFavicon(app.domain)} alt={app.name} class="w-6 h-6 object-contain opacity-90" />
+                        </div>
+                        
+                        <div class="min-w-0 flex flex-col">
+                            <div class="flex items-center gap-2">
+                                <h3 class="text-sm font-medium text-zinc-200 group-hover:text-white truncate transition-colors">
+                                    {app.name}
+                                </h3>
+                                {#if app.rating && app.rating >= 4.5}
+                                    <div class="flex items-center gap-0.5 text-[9px] font-bold text-amber-400 bg-amber-400/5 px-1.5 py-0.5 rounded border border-amber-400/15">
+                                        ★ {app.rating}
+                                    </div>
+                                {/if}
+                            </div>
+                            <div class="text-[10px] text-zinc-500 font-mono truncate mt-0.5">
+                                {app.domain}
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="shrink-0 pt-1">
+                        <span class="text-zinc-700 group-hover:text-accent group-hover:translate-x-0.5 transition-all duration-200 text-sm">
+                            →
+                        </span>
+                    </div>
                 </div>
 
-                <div class="flex-1 min-w-0 grid grid-cols-1 md:grid-cols-12 gap-2 md:gap-4 items-center">
+                <div class="space-y-3 pl-13"> 
                     
-                    <div class="md:col-span-4 min-w-0">
-                        <div class="flex items-center gap-2">
-                            <h3 class="text-sm font-medium text-zinc-300 group-hover:text-white truncate transition-colors">
-                                {app.name}
-                            </h3>
-                            {#if app.rating && app.rating >= 4.5}
-                                <span class="text-[9px] text-amber-400 bg-amber-400/10 px-1 py-0.5 rounded border border-amber-400/10">★ {app.rating}</span>
-                            {/if}
-                        </div>
-                        <div class="text-[10px] text-zinc-600 font-mono truncate group-hover:text-zinc-500">
-                            {app.domain}
-                        </div>
-                    </div>
+                    <p class="text-xs text-zinc-400 group-hover:text-zinc-300 line-clamp-2 leading-snug transition-colors">
+                        {app.description}
+                    </p>
 
-                    <div class="md:col-span-5 hidden md:block">
-                        <p class="text-xs text-zinc-500 group-hover:text-zinc-400 line-clamp-1 truncate transition-colors">
-                            {app.description}
-                        </p>
-                    </div>
-
-                    <div class="md:col-span-3 hidden md:flex justify-end gap-1.5">
+                    <div class="flex flex-wrap items-center gap-2">
                         {#each getDisplayTags(app) as tag}
-                            <span class="text-[9px] px-1.5 py-0.5 rounded border {getBadgeColor(tag)} truncate max-w-[80px]">
+                            <span class="text-[9px] px-2 py-0.5 rounded-md border font-medium {getBadgeColor(tag)} transition-colors">
                                 {tag}
                             </span>
                         {/each}
                     </div>
-                </div>
-
-                <div class="shrink-0 pl-2">
-                    <svg class="w-4 h-4 text-zinc-700 group-hover:text-accent group-hover:translate-x-0.5 transition-all duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 5l7 7-7 7"></path>
-                    </svg>
                 </div>
             </a>
         {/each}
     </div>
 
     {#if apps.length === 0}
-        <div class="py-12 text-center border border-dashed border-zinc-800 rounded-lg">
-            <p class="text-xs text-zinc-600 font-mono">No data found.</p>
+        <div class="py-16 flex flex-col items-center justify-center border border-dashed border-zinc-800 rounded-xl bg-zinc-900/10">
+            <span class="text-2xl opacity-20 mb-2">∅</span>
+            <p class="text-xs text-zinc-600 font-mono">Scanning for opportunities...</p>
         </div>
     {/if}
 </div>
+
+<style>
+    /* CSS để căn chỉnh lề cho Description & Tags bằng kích thước của Icon (w-10 + gap-3 = 10px*4 + 12px = 52px) */
+    .pl-13 {
+        padding-left: 52px;
+    }
+</style>

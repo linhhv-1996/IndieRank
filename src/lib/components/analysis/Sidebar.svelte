@@ -4,7 +4,6 @@
     import SeedingTargets from './SeedingTargets.svelte';
     import { slugify } from '$lib/utils';
 
-    // Nhận thêm props mới
     export let targets: SeedingTarget[] = [];
     export let alternatives: AppItem[] = [];
     export let relatedSearches: string[] = [];
@@ -22,20 +21,32 @@
     </div>
 
     {#if alternatives.length > 0}
-        <div class="bento-card p-4 border border-border bg-zinc-900/20">
-            <h3 class="text-[11px] font-mono text-subtle uppercase tracking-widest mb-3 pl-1">
-                Other Alternatives
-            </h3>
-            <div class="space-y-1">
+        <div class="bento-card border border-zinc-800/60 bg-zinc-900/20 p-0 overflow-hidden">
+            
+            <div class="px-4 py-3 border-b border-zinc-800/60 bg-zinc-900/50">
+                <h3 class="text-[11px] font-mono text-subtle uppercase tracking-widest">
+                    Other Alternatives ({alternatives.length})
+                </h3>
+            </div>
+
+            <div class="divide-y divide-zinc-800">
                 {#each alternatives as app}
-                    <a href={app.url} target="_blank" rel="noopener noreferrer" class="group flex items-center gap-3 p-2 rounded-lg hover:bg-zinc-800 transition-all">
-                        <div class="w-6 h-6 rounded bg-zinc-800 border border-zinc-700 flex items-center justify-center shrink-0">
-                            <img src={getFavicon(app.domain)} alt="" class="w-3.5 h-3.5 opacity-70 group-hover:opacity-100 grayscale group-hover:grayscale-0 transition-all" />
+                    <a href={app.url} target="_blank" rel="noopener noreferrer" class="
+                        group flex items-center gap-3 px-4 py-2.5 
+                        hover:bg-zinc-800/50 transition-all duration-200
+                    ">
+                        <div class="w-8 h-8 rounded-md bg-zinc-900 border border-zinc-800 flex items-center justify-center shrink-0">
+                            <img src={getFavicon(app.domain)} alt="" class="w-4 h-4 opacity-70 group-hover:opacity-100 grayscale group-hover:grayscale-0 transition-all" />
                         </div>
+                        
                         <div class="min-w-0 flex-1">
                             <div class="flex justify-between items-center">
-                                <span class="text-xs font-medium text-zinc-400 group-hover:text-white truncate">{app.name}</span>
-                                <span class="text-[11px] text-zinc-600 opacity-0 group-hover:opacity-100 transition-opacity">↗</span>
+                                <span class="text-xs font-medium text-zinc-300 group-hover:text-white truncate">
+                                    {app.name}
+                                </span>
+                                <span class="text-[10px] text-zinc-600 font-mono opacity-80 group-hover:opacity-100 transition-opacity">
+                                    {app.domain}
+                                </span>
                             </div>
                         </div>
                     </a>
@@ -46,17 +57,21 @@
 
     {#if relatedSearches.length > 0}
         <div class="pt-2">
-            <h3 class="text-[11px] font-mono text-subtle uppercase tracking-widest mb-3 pl-1">
+            <h3 class="text-[10px] font-mono text-subtle uppercase tracking-widest mb-3 pl-1">
                 Related Topics
             </h3>
             <div class="flex flex-wrap gap-2">
                 {#each relatedSearches as term}
-                    <a href="/analyze/{country.toLowerCase()}/{slugify(term)}" class="px-2.5 py-1 bg-zinc-900 border border-zinc-800 rounded-md text-[11px] text-subtle hover:text-white hover:border-zinc-600 transition-colors truncate max-w-full block">
+                    <a href="/analyze/{country.toLowerCase()}/{slugify(term)}" class="
+                        px-2.5 py-1 rounded-md text-[10px] 
+                        bg-zinc-900 border border-zinc-800 
+                        text-subtle hover:text-white hover:border-zinc-600 
+                        transition-colors truncate max-w-full block font-mono
+                    ">
                         {term}
                     </a>
                 {/each}
             </div>
         </div>
     {/if}
-
 </aside>
