@@ -1,14 +1,11 @@
 <script lang="ts">
     import type { PageData } from './$types';
-    import AppGrid from '$lib/components/analysis/AppGrid.svelte'; // <-- Component mới
-    import Sidebar from '$lib/components/analysis/Sidebar.svelte'; // <-- Component cũ
-    import { slugify } from '$lib/utils';
+    import AppGrid from '$lib/components/analysis/AppGrid.svelte';
+    import Sidebar from '$lib/components/analysis/Sidebar.svelte';
 
     export let data: PageData;
     $: ({ keyword, country, metaTitle, metaDesc, slug } = data);
 
-    // --- CẤU HÌNH SPONSOR GIẢ LẬP (SLOT $1k) ---
-    // Sau này fetch từ DB dựa trên keyword
     const sponsorData = {
         title: "Clockify - #1 Free Time Tracker",
         domain: "clockify.me",
@@ -35,7 +32,7 @@
 
     <div class="mb-8">
         <p class="text-[11px] font-mono text-subtle uppercase tracking-[0.18em] mb-1">
-            Curated Tools & Insights
+            AI-Powered Buying Guide & Reviews
         </p>
         <h1 class="text-2xl md:text-3xl font-semibold text-white mb-2 capitalize">
             {keyword}
@@ -50,74 +47,59 @@
         </div>
     </div>
 
-    <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+    <div class="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
         
         <div class="lg:col-span-8 space-y-8">
             {#await data.streamed}
                 <div class="space-y-4 animate-pulse">
+                    <div class="h-32 bg-zinc-900/50 border border-zinc-800 rounded-xl w-full mb-6"></div>
                     <div class="h-40 bg-zinc-800/50 rounded-2xl w-full border border-zinc-800"></div>
-                    <div class="h-32 bg-zinc-800/50 rounded-2xl w-full border border-zinc-800"></div>
                     <div class="h-32 bg-zinc-800/50 rounded-2xl w-full border border-zinc-800"></div>
                 </div>
             {:then result} 
-                
-                <AppGrid 
-                    apps={result.apps} 
-                    sponsor={sponsorData} 
-                />
+                {@const featuredApps = result.apps.filter(a => a.type === 'app' || (a.rating && a.rating > 0))}
+                {@const alternatives = result.apps.filter(a => !featuredApps.includes(a))}
 
-                <section class="mt-12 pt-8 border-t border-border">
-                    <h3 class="text-sm font-medium text-white mb-4">Related Searches</h3>
-                    <div class="flex flex-wrap gap-2.5">
-                        {#each result.pivotIdeas as term}
-                            <a href="/analyze/{country.toLowerCase()}/{slugify(term)}" class="px-3 py-1.5 bg-zinc-900 border border-zinc-800 rounded-full text-xs text-subtle hover:text-white hover:border-accent/50 transition-colors">
-                                {term}
-                            </a>
-                        {/each}
-                    </div>
-                </section>
+                {#if result.marketReport}
+                    <section class="relative overflow-hidden rounded-xl border border-accent/20 bg-zinc-900/40 p-5">
+                        <div class="absolute top-0 right-0 -mt-10 -mr-10 w-32 h-32 bg-accent/10 blur-3xl rounded-full pointer-events-none"></div>
+                        <div class="relative z-10">
+                            <div class="flex items-center gap-2.5 mb-3">
+                                <div class="w-6 h-6 rounded bg-accent/10 border border-accent/20 flex items-center justify-center text-sm">⚡</div>
+                                <h3 class="text-xs font-bold text-white uppercase tracking-wider font-mono">Quick Buying Guide</h3>
+                            </div>
+                            <div class="text-xs text-subtle leading-relaxed [&_p]:mb-2 [&_p:last-child]:mb-0 [&_strong]:text-white [&_strong]:font-medium [&_strong]:text-accent">
+                                {@html result.marketReport}
+                            </div>
+                        </div>
+                    </section>
+                {/if}
+
+                <AppGrid apps={featuredApps} sponsor={sponsorData} />
 
             {:catch error}
                 <div class="p-6 border border-red-500/20 bg-red-500/10 rounded-xl text-center">
                     <p class="text-red-400 text-sm">{error.message}</p>
-                    <button class="mt-4 px-4 py-2 bg-red-500/20 hover:bg-red-500/30 text-red-300 rounded text-xs transition-colors" on:click={() => location.reload()}>
-                        Try Again
-                    </button>
+                    <button class="mt-4 px-4 py-2 bg-red-500/20 hover:bg-red-500/30 text-red-300 rounded text-xs transition-colors" on:click={() => location.reload()}>Try Again</button>
                 </div>
             {/await}
         </div>
 
         {#await data.streamed}
             <aside class="lg:col-span-4 space-y-6 sticky-sidebar animate-pulse">
-                
-                <div class="flex items-center justify-between">
-                    <div class="h-7 w-1/3 bg-zinc-800/50 rounded-md"></div> <div class="h-6 w-20 bg-zinc-800/50 rounded-full"></div> </div>
-
                 <div class="h-28 bg-zinc-800/50 rounded-2xl border border-zinc-800"></div>
-
-                <div class="h-48 bg-zinc-800/50 rounded-2xl border border-zinc-800 relative overflow-hidden">
-                    <div class="absolute top-0 right-0 w-24 h-24 bg-zinc-700/20 rounded-full blur-xl"></div>
-                </div>
-
-                <div class="h-64 bg-zinc-800/50 rounded-2xl border border-zinc-800 space-y-4 p-4">
-                    <div class="flex justify-between border-b border-zinc-700/50 pb-2">
-                        <div class="h-3 w-24 bg-zinc-700/50 rounded"></div>
-                        <div class="h-3 w-8 bg-zinc-700/50 rounded"></div>
-                    </div>
-                    {#each Array(4) as _}
-                        <div class="flex gap-3">
-                            <div class="w-8 h-8 rounded bg-zinc-700/30 shrink-0"></div>
-                            <div class="flex-1 space-y-2">
-                                <div class="h-3 w-3/4 bg-zinc-700/30 rounded"></div>
-                                <div class="h-2 w-1/2 bg-zinc-700/20 rounded"></div>
-                            </div>
-                        </div>
-                    {/each}
-                </div>
-
+                <div class="h-64 bg-zinc-800/50 rounded-2xl border border-zinc-800"></div>
             </aside>
         {:then result}
-            <Sidebar verdict={result.verdict} targets={result.seedingTargets} />
+            {@const featuredAppsSidebar = result.apps.filter(a => a.type === 'app' || (a.rating && a.rating > 0))}
+            {@const alternativesSidebar = result.apps.filter(a => !featuredAppsSidebar.includes(a))}
+            
+            <Sidebar 
+                targets={result.seedingTargets} 
+                alternatives={alternativesSidebar}
+                relatedSearches={result.pivotIdeas}
+                {country}
+            />
         {/await}
     </div>
 </div>

@@ -9,7 +9,7 @@ export interface RawSearchResult {
     displayed_link?: string;
     rich_snippet?: {
         top?: {
-            extensions?: string[]; // VD: ["4.5(2,550)", "Free", "iOS"]
+            extensions?: string[];
             detected_extensions?: Record<string, any>;
         };
     };
@@ -69,7 +69,7 @@ export interface RawApiResponse {
     inline_videos?: RawInlineVideo[];
 }
 
-// --- PROCESSED TYPES (Dữ liệu sạch cho Frontend) ---
+// --- PROCESSED TYPES ---
 
 export interface SeedingTarget {
     source: string;
@@ -86,26 +86,18 @@ export interface Verdict {
     color: 'green' | 'red' | 'yellow';
 }
 
-// Interface App được nâng cấp
 export interface AppItem {
-    // Core Data (Luôn có)
     name: string;
     domain: string;
     url: string;
     description: string;
-    
-    // Phân loại
     type: 'app' | 'template' | 'resource';
     pricingModel: 'Free' | 'Freemium' | 'Paid' | 'Unknown';
-    features: string[]; // VD: ["iOS", "Open Source", "No Credit Card"]
-    
-    // Social Proof (Có thể null)
-    rating?: number;        // 4.5
-    reviewCount?: string;   // "2.5k"
-    
-    // UX
-    ctaText: string;        // "Get App", "Read Guide"
-    audience?: string;      // "Best for Teams", "Solo Friendly"
+    features: string[];
+    rating?: number;
+    reviewCount?: string;
+    ctaText: string;
+    audience?: string;
 }
 
 export interface AnalysisResult {
@@ -113,4 +105,5 @@ export interface AnalysisResult {
     apps: AppItem[];
     seedingTargets: SeedingTarget[];
     pivotIdeas: string[];
+    marketReport?: string; // <-- TRƯỜNG MỚI THÊM
 }

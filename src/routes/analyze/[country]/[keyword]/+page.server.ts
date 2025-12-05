@@ -3,9 +3,10 @@ import type { PageServerLoad } from './$types';
 import type { RawApiResponse, AnalysisResult, AppItem, SeedingTarget, Verdict } from '$lib/types';
 import { PRIVATE_VALUESERP_API_KEY } from '$env/static/private';
 import { COUNTRIES } from '$lib/country_config';
-import { DOMAIN_CATEGORIES, PRODUCT_INTENT } from '$lib/constants';
+import { DOMAIN_CATEGORIES } from '$lib/constants';
 import { adminDB } from '$lib/server/firebase';
 import { Timestamp } from 'firebase-admin/firestore';
+import { generateMarketReport } from '$lib/server/ai';
 
 const COUNTRY_MAP = COUNTRIES.reduce((acc, curr) => {
     let hl = 'en';
@@ -47,7 +48,6 @@ function extractMetaFromOrganic(item: any): string {
     return commentExt || `Rank #${item.position}`;
 }
 
-// Phân loại Domain
 function getDomainCategory(domain: string): keyof typeof DOMAIN_CATEGORIES | 'UNKNOWN' {
     const d = domain.toLowerCase();
     for (const [category, keywords] of Object.entries(DOMAIN_CATEGORIES)) {
@@ -58,61 +58,34 @@ function getDomainCategory(domain: string): keyof typeof DOMAIN_CATEGORIES | 'UN
     return 'UNKNOWN';
 }
 
-// --- LOGIC MỚI: XỬ LÝ DATA SERP THỰC TẾ (ROBUST) ---
 function normalizeAppItem(item: any, domainCategory: string): AppItem | null {
     if (domainCategory === 'FORUM') return null;
 
-    // 1. AN TOÀN LÀ TRÊN HẾT: Xử lý trường hợp không có rich_snippet
     const extensions = item.rich_snippet?.top?.extensions || [];
     const extensionText = Array.isArray(extensions) ? extensions.join(' ') : '';
-    
-    // Gộp text an toàn. Nếu snippet null thì dùng chuỗi rỗng.
     const fullText = `${item.title || ''} ${item.snippet || ''} ${extensionText}`.toLowerCase();
 
-    // 2. Phân tích Features & Pricing (Logic vét cạn)
     const features: string[] = [];
     let pricing: 'Free' | 'Freemium' | 'Paid' | 'Unknown' = 'Unknown';
 
-    // -- Bắt giá (Mở rộng từ khóa) --
-    if (
-        fullText.includes('free account') || 
-        fullText.includes('start for free') || 
-        fullText.includes('sign up free') ||
-        fullText.includes('free trial') || // Thường trial là paid/freemium
-        fullText.includes('0$')
-    ) {
+    if (fullText.includes('free account') || fullText.includes('start for free') || fullText.includes('sign up free') || fullText.includes('free trial') || fullText.includes('0$')) {
         pricing = 'Freemium';
-    } else if (
-        fullText.includes('pricing') || 
-        fullText.includes('buy') || 
-        fullText.includes('subscribe') ||
-        fullText.includes('plan') // VD: "Pro plan"
-    ) {
+    } else if (fullText.includes('pricing') || fullText.includes('buy') || fullText.includes('subscribe') || fullText.includes('plan')) {
         pricing = 'Paid';
     } else if (fullText.includes('free') || fullText.includes('no credit card')) {
-        // Check kỹ hơn: Nếu chỉ có chữ "free" đơn độc thì khả năng cao là Free thật
         pricing = 'Free';
     }
 
-    // -- Bắt tính năng (Dựa trên data thực tế & keyword phổ biến) --
-    // General Tech
     if (fullText.includes('ai ') || fullText.includes('ai-powered') || fullText.includes('gpt')) features.push('AI Powered');
-    if (fullText.includes('no code') || fullText.includes('drag and drop') || fullText.includes('drag-and-drop')) features.push('No Code');
+    if (fullText.includes('no code') || fullText.includes('drag and drop')) features.push('No Code');
     if (fullText.includes('open source') || fullText.includes('github')) features.push('Open Source');
     if (fullText.includes('unlimited')) features.push('Unlimited');
-    
-    // Platform
     if (fullText.includes('ios') || fullText.includes('iphone')) features.push('iOS');
     if (fullText.includes('android')) features.push('Android');
     if (fullText.includes('mac') || fullText.includes('macos')) features.push('macOS');
     if (fullText.includes('windows')) features.push('Windows');
-
-    // Niche Specific (Ví dụ cho Survey/Form - Có thể mở rộng)
     if (fullText.includes('template')) features.push('Templates');
-    if (fullText.includes('quiz')) features.push('Quiz Maker');
-    if (fullText.includes('poll')) features.push('Polls');
 
-    // Audience
     let audience: string | undefined;
     if (fullText.includes('team') || fullText.includes('enterprise') || fullText.includes('business')) {
         audience = '🏢 For Teams';
@@ -120,35 +93,27 @@ function normalizeAppItem(item: any, domainCategory: string): AppItem | null {
         audience = '👤 For Solo';
     }
 
-    // 3. Phân loại App/Resource (Quan trọng để lọc rác)
-    // Nếu tiêu đề/snippet chứa động từ hành động hoặc danh từ công cụ
     const isAppSignal = [
         'maker', 'builder', 'creator', 'generator', 'platform', 'tool', 'software', 'app',
         'create', 'build', 'make', 'generate', 'design', 'download'
     ].some(k => fullText.includes(k));
 
-    // Loại trừ báo chí/tin tức nếu không phải là review
     const isNews = domainCategory === 'NEWS';
     
-    // Logic quyết định Type
     let type: 'app' | 'template' | 'resource' = 'resource';
-    
     if (fullText.includes('template') || fullText.includes('theme') || fullText.includes('kit')) {
         type = 'template';
     } else if (isAppSignal && !isNews) {
         type = 'app';
     }
 
-    // CTA Text
     let ctaText = 'Visit';
     if (type === 'app') ctaText = 'Get App';
     else if (type === 'template') ctaText = 'View Template';
 
-    // Rating (Cố gắng lấy từ rich snippet extension nếu có dạng "4.5 (200)")
     let rating: number | undefined;
     let reviewCount: string | undefined;
     
-    // Regex tìm rating trong extension text (VD: "4.5/5" hoặc "4.8")
     const ratingMatch = extensionText.match(/(\d(\.\d)?)\s*(\/|\(|\sstars)/);
     if (ratingMatch) {
         const val = parseFloat(ratingMatch[1]);
@@ -161,10 +126,10 @@ function normalizeAppItem(item: any, domainCategory: string): AppItem | null {
         name: getBrandName(item.domain), 
         domain: item.domain || '',
         url: item.link || '',
-        description: item.snippet || '', // Fallback nếu snippet rỗng
+        description: item.snippet || '', 
         type,
         pricingModel: pricing,
-        features: features.slice(0, 4), // Lấy tối đa 4 tags
+        features: features.slice(0, 4),
         rating,
         reviewCount,
         ctaText,
@@ -205,23 +170,28 @@ function analyzeMarket(apps: AppItem[], seedingTargets: SeedingTarget[]): Verdic
 }
 
 async function getKeywordIdeas(apiKeywordIdeas: string[], countryCode: string, readableKeyword: string): Promise<string[]> {
-    const linksSnap = await adminDB.collection('analysis')
-        .where('country', '==', countryCode)
-        .orderBy('created_at', 'desc')
-        .limit(20)
-        .select('keyword')
-        .get();
+    try {
+        const linksSnap = await adminDB.collection('analysis')
+            .where('country', '==', countryCode)
+            .orderBy('created_at', 'desc')
+            .limit(20)
+            .select('keyword')
+            .get();
 
-    const dbKeywords = linksSnap.docs
-        .map(d => d.data().keyword)
-        .filter(k => k && k !== readableKeyword);
+        const dbKeywords = linksSnap.docs
+            .map(d => d.data().keyword)
+            .filter(k => k && k !== readableKeyword);
 
-    if (dbKeywords.length > 0) {
-        return dbKeywords.sort(() => 0.5 - Math.random()).slice(0, 10);
+        if (dbKeywords.length > 0) {
+            return dbKeywords.sort(() => 0.5 - Math.random()).slice(0, 10);
+        }
+    } catch (e) {
+        // Fallback nếu query lỗi (ví dụ chưa index)
     }
     return apiKeywordIdeas;
 }
 
+// Hàm này chỉ lưu Raw SERP response (chạy lần đầu)
 async function saveRawToFirebase(docId: string, rawData: RawApiResponse, meta: { keyword: string, slug: string, country: string }) {
     try {
         const record = {
@@ -231,10 +201,23 @@ async function saveRawToFirebase(docId: string, rawData: RawApiResponse, meta: {
             created_at: Timestamp.now(),
             raw_response: JSON.stringify(rawData)
         };
-        await adminDB.collection('analysis').doc(docId).set(record);
-        console.log('✅ Saved raw data to DB:', docId);
+        await adminDB.collection('analysis').doc(docId).set(record, { merge: true });
+        console.log('✅ Saved Raw SERP Data:', docId);
     } catch (error) {
-        console.error('🔥 Firebase Save Error:', error);
+        console.error('🔥 Firebase Save Raw Error:', error);
+    }
+}
+
+// Hàm này UPDATE document để lưu thêm marketReport (chạy sau khi có AI)
+async function saveReportToFirebase(docId: string, report: string) {
+    try {
+        await adminDB.collection('analysis').doc(docId).update({
+            market_report: report, // <-- Lưu cái này vào để lần sau lấy ra dùng
+            updated_at: Timestamp.now()
+        });
+        console.log('✅ Cached AI Report to DB:', docId);
+    } catch (error) {
+        console.error('🔥 Firebase Save Report Error:', error);
     }
 }
 
@@ -255,16 +238,22 @@ export const load: PageServerLoad = async ({ params }) => {
     const loadAnalysisData = async (): Promise<AnalysisResult> => {
         const config = COUNTRY_MAP[countryCode] || COUNTRY_MAP['us'];
         let rawData: RawApiResponse | null = null;
+        let marketReport = ''; // Biến chứa report (lấy từ DB hoặc tạo mới)
 
+        // 1. Kiểm tra Cache trong DB
         try {
             const docRef = adminDB.collection('analysis').doc(docId);
             const docSnap = await docRef.get();
             if (docSnap.exists) {
                 const data = docSnap.data();
+                // Lấy Raw Data cũ
                 if (data?.raw_response) rawData = JSON.parse(data.raw_response);
+                // Lấy Report đã cache (quan trọng!)
+                if (data?.market_report) marketReport = data.market_report;
             }
-        } catch (e) { console.error('DB Error:', e); }
+        } catch (e) { console.error('DB Cache Error:', e); }
 
+        // 2. Nếu không có Raw Data -> Gọi SERP API
         if (!rawData) {
             try {
                 const url = new URL('https://api.valueserp.com/search');
@@ -275,16 +264,21 @@ export const load: PageServerLoad = async ({ params }) => {
                 url.searchParams.append('google_domain', config.google_domain);
                 url.searchParams.append('include_answer_box', 'true');
                 url.searchParams.append('include_ai_overview', 'true');
+                url.searchParams.append('include_videos', 'true');
                 url.searchParams.append('max_page', '2');
+                
                 const res = await fetch(url.toString());
                 if (!res.ok) throw new Error(`API Error`);
+                
                 rawData = await res.json();
+                // Lưu raw data ngay lập tức
                 saveRawToFirebase(docId, rawData!, { keyword: readableKeyword, slug: rawKeyword, country: countryCode });
             } catch (error) {
-                return { verdict: { status: "Error", title: "Error", description: "Fetch failed", color: "red" }, apps: [], seedingTargets: [], pivotIdeas: [] };
+                return { verdict: { status: "Error", title: "Error", description: "Fetch failed", color: "red" }, apps: [], seedingTargets: [], pivotIdeas: [], marketReport: '' };
             }
         }
 
+        // 3. Xử lý dữ liệu (Extract Apps, Forum, Video...)
         const organicResults = rawData?.organic_results || [];
         const apps: AppItem[] = [];
         const seedingTargets: SeedingTarget[] = [];
@@ -330,53 +324,61 @@ export const load: PageServerLoad = async ({ params }) => {
             });
         }
 
-        // --- RELATED SEARCHES (GIỮ NGUYÊN NHƯ CŨ) ---
+        if (rawData?.inline_videos) {
+            rawData.inline_videos.forEach(v => {
+                if (v.link && !addedUrls.has(v.link)) {
+                    const src = (v.source || '').toLowerCase();
+                    if (src.includes('reddit') || src.includes('youtube') || src.includes('tiktok')) {
+                        seedingTargets.push({
+                            source: v.source || 'Video',
+                            title: v.title,
+                            url: v.link,
+                            meta: v.length ? `Video • ${v.length}` : 'Video',
+                            isHijackable: true
+                        });
+                        addedUrls.add(v.link);
+                    }
+                }
+            });
+        }
+
+        // 4. Pivot Ideas
         let rawIdeas: string[] = [];
         if (rawData?.related_searches) rawIdeas.push(...rawData.related_searches.map(s => s.query));
         if (rawData?.related_questions) rawIdeas.push(...rawData.related_questions.map(q => q.question));
-        
         const apiPivotIdeas = [...new Set(rawIdeas)].filter(str => str && str.length < 70 && str.length > 5).slice(0, 8);
         const pivotIdeas = await getKeywordIdeas(apiPivotIdeas, countryCode, readableKeyword);
 
-        // Sort: App có rating/features lên đầu
-        // apps.sort((a, b) => {
-        //     const scoreA = (a.type === 'app' ? 20 : 0) + (a.rating || 0) + (a.features.length * 2);
-        //     const scoreB = (b.type === 'app' ? 20 : 0) + (b.rating || 0) + (b.features.length * 2);
-        //     return scoreB - scoreA;
-        // });
+        // 5. Sorting
         apps.sort((a, b) => {
-            // 1. Rating (Hệ số 10.000): Ưu tiên tuyệt đối số 1.
-            // Có rating là bố, không bàn cãi.
             const ratingA = (a.rating || 0) * 10000;
             const ratingB = (b.rating || 0) * 10000;
-
-            // 2. Độ giàu thông tin (Richness) - QUAN TRỌNG NHÌ
-            // Đếm số lượng feature tìm được (Free, AI, No Code...).
-            // Mỗi feature = 100 điểm. Max 4 feature = 400 điểm.
-            // Logic cũ: feature có 10đ -> Quá thấp.
             const featA = (a.features?.length || 0) * 100;
             const featB = (b.features?.length || 0) * 100;
-
-            // 3. Loại (Type) - QUAN TRỌNG BA
-            // App chỉ được cộng 50 điểm thôi (ít hơn 1 feature).
-            // Nghĩa là: Resource có 1 feature (100đ) vẫn hơn App rỗng (50đ).
             const typeA = a.type === 'app' ? 50 : 0;
             const typeB = b.type === 'app' ? 50 : 0;
-
-            // 4. Độ dài mô tả (Description) - Tie-breaker
-            // Thằng nào mô tả dài hơn chút thì ưu tiên nhẹ (tránh mấy thằng rỗng tuếch)
             const descA = (a.description || '').length > 20 ? 10 : 0;
             const descB = (b.description || '').length > 20 ? 10 : 0;
-
             const scoreA = ratingA + featA + typeA + descA;
             const scoreB = ratingB + featB + typeB + descB;
-
-            return scoreB - scoreA; // Giảm dần
+            return scoreB - scoreA; 
         });
 
         const verdict = analyzeMarket(apps, seedingTargets);
 
-        return { verdict, apps, seedingTargets, pivotIdeas };
+        // 6. LOGIC AI & CACHING (Quan trọng)
+        // Nếu trong DB chưa có report thì mới gọi AI
+        if (!marketReport && apps.length > 0) {
+            // Gọi AI
+            marketReport = await generateMarketReport(readableKeyword, apps, seedingTargets);
+            
+            // Nếu tạo thành công thì lưu ngay vào DB để lần sau không phải gọi nữa
+            if (marketReport) {
+                await saveReportToFirebase(docId, marketReport);
+            }
+        }
+
+        return { verdict, apps, seedingTargets, pivotIdeas, marketReport };
     };
 
     return { ...metaData, streamed: loadAnalysisData() };

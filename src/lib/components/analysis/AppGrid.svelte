@@ -3,117 +3,88 @@
     export let apps: AppItem[] = [];
     export let sponsor: any = null;
 
-    const getFavicon = (domain: string) => `https://www.google.com/s2/favicons?domain=${domain}&sz=128`;
+    const getFavicon = (domain: string) => `https://www.google.com/s2/favicons?domain=${domain}&sz=64`;
     
-    // Helper màu cho badge
+    // Badge style tối giản, border mỏng
     const getBadgeColor = (tag: string) => {
         const t = tag.toLowerCase();
-        if (t.includes('free')) return 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20';
-        if (t.includes('top rated')) return 'bg-yellow-500/10 text-yellow-400 border-yellow-500/20';
-        if (t.includes('open source')) return 'bg-purple-500/10 text-purple-400 border-purple-500/20';
-        if (t.includes('for teams')) return 'bg-blue-500/10 text-blue-400 border-blue-500/20';
-        return 'bg-zinc-800 text-zinc-400 border-zinc-700';
+        if (t.includes('free')) return 'text-emerald-400 border-emerald-400/20 bg-emerald-400/5';
+        if (t.includes('top rated')) return 'text-amber-400 border-amber-400/20 bg-amber-400/5';
+        if (t.includes('open source')) return 'text-purple-400 border-purple-400/20 bg-purple-400/5';
+        return 'text-zinc-400 border-zinc-700 bg-zinc-800/50';
     };
 
-    // Helper tags
     const getDisplayTags = (app: AppItem) => {
         let tags = [];
         if (app.pricingModel && app.pricingModel !== 'Unknown') tags.push(app.pricingModel);
-        if (app.audience) tags.push(app.audience);
         tags = [...tags, ...app.features];
-        if (tags.length === 0) tags.push(app.type === 'app' ? 'Software' : 'Resource');
-        return tags.slice(0, 4);
+        return tags.slice(0, 3); // Lấy ít tag thôi cho thoáng
     };
-
-    $: featuredApps = apps.filter(a => a.type === 'app' || (a.rating && a.rating > 0));
-    $: otherApps = apps.filter(a => !featuredApps.includes(a));
 </script>
 
-<div class="space-y-8">
-    
-    <div>
-        <div class="flex items-center justify-between mb-4">
-            <h2 class="text-xl font-semibold text-white">Top Market Leaders</h2>
-        </div>
+<div class="w-full">
+    <div class="flex items-center justify-between px-2 mb-3">
+        <h2 class="text-xs font-mono font-medium text-subtle uppercase tracking-widest">Top Recommendations</h2>
+        <span class="text-[10px] text-zinc-600 font-mono">
+            {apps.length} items
+        </span>
+    </div>
 
-        <div class="grid grid-cols-1 gap-3">
-            {#each featuredApps as app}
-                <a href={app.url} target="_blank" rel="noopener noreferrer" class="bento-card p-4 group hover:border-zinc-500 transition-all block bg-card/80 flex flex-col h-full">
+    <div class="flex flex-col space-y-1">
+        {#each apps as app}
+            <a 
+                href={app.url} 
+                target="_blank" 
+                rel="noopener noreferrer" 
+                class="group relative flex items-center gap-3 p-3 rounded-lg border border-transparent hover:border-zinc-800 hover:bg-zinc-900/60 transition-all duration-200 cursor-pointer"
+            >
+                <div class="shrink-0 w-8 h-8 rounded-md bg-zinc-900 border border-zinc-800 flex items-center justify-center overflow-hidden group-hover:border-zinc-700 transition-colors">
+                    <img src={getFavicon(app.domain)} alt={app.name} class="w-5 h-5 object-contain opacity-80 group-hover:opacity-100 transition-opacity" />
+                </div>
+
+                <div class="flex-1 min-w-0 grid grid-cols-1 md:grid-cols-12 gap-2 md:gap-4 items-center">
                     
-                    <div class="flex items-start gap-3 mb-3">
-                        <div class="w-10 h-10 rounded-lg bg-zinc-800 border border-zinc-700 p-1.5 flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform shadow-sm">
-                            <img src={getFavicon(app.domain)} alt={app.name} class="w-full h-full object-contain opacity-90" />
+                    <div class="md:col-span-4 min-w-0">
+                        <div class="flex items-center gap-2">
+                            <h3 class="text-sm font-medium text-zinc-300 group-hover:text-white truncate transition-colors">
+                                {app.name}
+                            </h3>
+                            {#if app.rating && app.rating >= 4.5}
+                                <span class="text-[9px] text-amber-400 bg-amber-400/10 px-1 py-0.5 rounded border border-amber-400/10">★ {app.rating}</span>
+                            {/if}
                         </div>
-
-                        <div class="flex-1 min-w-0 flex justify-between items-start gap-2">
-                            <div class="flex flex-col">
-                                <div class="flex items-center gap-2">
-                                    <h3 class="text-sm md:text-base font-bold text-gray-100 group-hover:text-accent transition-colors truncate">
-                                        {app.name}
-                                    </h3>
-                                    {#if app.rating}
-                                        <div class="flex items-center gap-0.5 text-yellow-400 text-[10px] font-bold bg-yellow-400/10 px-1.5 py-0.5 rounded border border-yellow-400/10 shrink-0">
-                                            <span>★</span> {app.rating}
-                                        </div>
-                                    {/if}
-                                </div>
-                                <div class="text-[10px] text-zinc-500 truncate font-mono">{app.domain}</div>
-                            </div>
-
-                            <div class="shrink-0">
-                                <span class="flex items-center justify-center w-7 h-7 rounded-lg border border-zinc-700 bg-zinc-800/50 text-subtle group-hover:text-white group-hover:border-zinc-500 transition-colors">
-                                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"></path></svg>
-                                </span>
-                            </div>
+                        <div class="text-[10px] text-zinc-600 font-mono truncate group-hover:text-zinc-500">
+                            {app.domain}
                         </div>
                     </div>
 
-                    <p class="text-xs sm:text-sm text-subtle leading-relaxed line-clamp-2 mb-4 flex-grow group-hover:text-zinc-300 transition-colors">
-                        {app.description}
-                    </p>
+                    <div class="md:col-span-5 hidden md:block">
+                        <p class="text-xs text-zinc-500 group-hover:text-zinc-400 line-clamp-1 truncate transition-colors">
+                            {app.description}
+                        </p>
+                    </div>
 
-                    <div class="flex flex-wrap items-center gap-2 mt-auto">
+                    <div class="md:col-span-3 hidden md:flex justify-end gap-1.5">
                         {#each getDisplayTags(app) as tag}
-                            <span class="px-2 py-0.5 rounded-[4px] text-[10px] font-medium border {getBadgeColor(tag)}">
+                            <span class="text-[9px] px-1.5 py-0.5 rounded border {getBadgeColor(tag)} truncate max-w-[80px]">
                                 {tag}
                             </span>
                         {/each}
                     </div>
-                </a>
-            {/each}
-        </div>
+                </div>
+
+                <div class="shrink-0 pl-2">
+                    <svg class="w-4 h-4 text-zinc-700 group-hover:text-accent group-hover:translate-x-0.5 transition-all duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 5l7 7-7 7"></path>
+                    </svg>
+                </div>
+            </a>
+        {/each}
     </div>
 
-    {#if otherApps.length > 0}
-        <div class="pt-6 border-t border-dashed border-zinc-800">
-            <div class="flex items-center gap-2 mb-3 pl-1">
-                <h3 class="text-xs font-mono text-subtle uppercase tracking-widest">Alternatives</h3>
-                <span class="text-[9px] bg-zinc-800 border border-zinc-700 px-1.5 py-0.5 rounded text-subtle">{otherApps.length}</span>
-            </div>
-            
-            <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                {#each otherApps as app}
-                    <a href={app.url} target="_blank" rel="noopener noreferrer" class="group p-3 rounded-lg border border-zinc-800 bg-zinc-900/20 hover:bg-zinc-800 hover:border-zinc-600 transition-all flex items-center gap-3">
-                        <div class="w-8 h-8 rounded bg-zinc-800 border border-zinc-700 flex items-center justify-center shrink-0">
-                            <img src={getFavicon(app.domain)} alt="" class="w-4 h-4 opacity-60 group-hover:opacity-100 transition-opacity" />
-                        </div>
-                        <div class="min-w-0 flex-1">
-                            <div class="flex justify-between items-center">
-                                <h4 class="text-xs font-semibold text-zinc-300 group-hover:text-white truncate">{app.name}</h4>
-                                <span class="text-[10px] text-zinc-600 group-hover:text-zinc-400 opacity-0 group-hover:opacity-100 transition-opacity">↗</span>
-                            </div>
-                            <p class="text-[10px] text-zinc-500 truncate">{app.domain}</p>
-                        </div>
-                    </a>
-                {/each}
-            </div>
-        </div>
-    {/if}
-
     {#if apps.length === 0}
-        <div class="py-12 text-center border border-dashed border-zinc-800 rounded-xl bg-zinc-900/30">
-            <span class="text-2xl grayscale opacity-50 mb-2 block">📡</span>
-            <p class="text-subtle text-sm">Scanning market data...</p>
+        <div class="py-12 text-center border border-dashed border-zinc-800 rounded-lg">
+            <p class="text-xs text-zinc-600 font-mono">No data found.</p>
         </div>
     {/if}
 </div>
