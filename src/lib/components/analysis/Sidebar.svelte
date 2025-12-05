@@ -9,7 +9,7 @@
     export let targets: SeedingTarget[];
 </script>
 
-<aside class="lg:col-span-4 space-y-6 sticky-sidebar">
+<aside class="lg:col-span-4 space-y-4 sticky-sidebar">
     
     <div class="flex items-center justify-between">
         <h2 class="text-xl font-semibold text-white">Market Insights</h2>

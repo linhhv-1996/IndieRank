@@ -58,94 +58,116 @@ function getDomainCategory(domain: string): keyof typeof DOMAIN_CATEGORIES | 'UN
     return 'UNKNOWN';
 }
 
-// 1. Phân tích Rich Snippet
-function extractRating(item: any): { rating?: number; count?: string } {
+// --- LOGIC MỚI: XỬ LÝ DATA SERP THỰC TẾ (ROBUST) ---
+function normalizeAppItem(item: any, domainCategory: string): AppItem | null {
+    if (domainCategory === 'FORUM') return null;
+
+    // 1. AN TOÀN LÀ TRÊN HẾT: Xử lý trường hợp không có rich_snippet
     const extensions = item.rich_snippet?.top?.extensions || [];
-    let rating: number | undefined;
-    let count: string | undefined;
+    const extensionText = Array.isArray(extensions) ? extensions.join(' ') : '';
+    
+    // Gộp text an toàn. Nếu snippet null thì dùng chuỗi rỗng.
+    const fullText = `${item.title || ''} ${item.snippet || ''} ${extensionText}`.toLowerCase();
 
-    for (const ext of extensions) {
-        const ratingMatch = ext.match(/^(\d(\.\d)?)\s*(\(|\/)/); 
-        if (ratingMatch) {
-            const val = parseFloat(ratingMatch[1]);
-            if (!isNaN(val) && val <= 5) rating = val;
-            
-            const countMatch = ext.match(/\(([\d,.]+)\)/);
-            if (countMatch) count = countMatch[1];
-        }
-    }
-    return { rating, count };
-}
-
-// 2. Phân tích Snippet
-function analyzeSnippet(text: string): { features: string[], pricing: 'Free' | 'Freemium' | 'Paid' | 'Unknown', audience?: string } {
-    const t = text.toLowerCase();
+    // 2. Phân tích Features & Pricing (Logic vét cạn)
     const features: string[] = [];
     let pricing: 'Free' | 'Freemium' | 'Paid' | 'Unknown' = 'Unknown';
-    let audience: string | undefined;
 
-    if (t.includes('free') || t.includes('no credit card') || t.includes('0$')) {
-        pricing = 'Free';
-    } else if (t.includes('pricing') || t.includes('plan') || t.includes('trial')) {
+    // -- Bắt giá (Mở rộng từ khóa) --
+    if (
+        fullText.includes('free account') || 
+        fullText.includes('start for free') || 
+        fullText.includes('sign up free') ||
+        fullText.includes('free trial') || // Thường trial là paid/freemium
+        fullText.includes('0$')
+    ) {
+        pricing = 'Freemium';
+    } else if (
+        fullText.includes('pricing') || 
+        fullText.includes('buy') || 
+        fullText.includes('subscribe') ||
+        fullText.includes('plan') // VD: "Pro plan"
+    ) {
         pricing = 'Paid';
+    } else if (fullText.includes('free') || fullText.includes('no credit card')) {
+        // Check kỹ hơn: Nếu chỉ có chữ "free" đơn độc thì khả năng cao là Free thật
+        pricing = 'Free';
     }
 
-    if (t.includes('open source') || t.includes('github')) features.push('Open Source');
-    if (t.includes('ios') || t.includes('iphone') || t.includes('ipad')) features.push('iOS');
-    if (t.includes('android')) features.push('Android');
-    if (t.includes('mac') || t.includes('macos')) features.push('macOS');
-    if (t.includes('windows')) features.push('Windows');
-    if (t.includes('ai ') || t.includes('artificial intelligence') || t.includes('gpt')) features.push('AI Powered');
-    if (t.includes('no code') || t.includes('no-code')) features.push('No Code');
+    // -- Bắt tính năng (Dựa trên data thực tế & keyword phổ biến) --
+    // General Tech
+    if (fullText.includes('ai ') || fullText.includes('ai-powered') || fullText.includes('gpt')) features.push('AI Powered');
+    if (fullText.includes('no code') || fullText.includes('drag and drop') || fullText.includes('drag-and-drop')) features.push('No Code');
+    if (fullText.includes('open source') || fullText.includes('github')) features.push('Open Source');
+    if (fullText.includes('unlimited')) features.push('Unlimited');
+    
+    // Platform
+    if (fullText.includes('ios') || fullText.includes('iphone')) features.push('iOS');
+    if (fullText.includes('android')) features.push('Android');
+    if (fullText.includes('mac') || fullText.includes('macos')) features.push('macOS');
+    if (fullText.includes('windows')) features.push('Windows');
 
-    if (t.includes('team') || t.includes('enterprise') || t.includes('collab') || t.includes('business')) {
+    // Niche Specific (Ví dụ cho Survey/Form - Có thể mở rộng)
+    if (fullText.includes('template')) features.push('Templates');
+    if (fullText.includes('quiz')) features.push('Quiz Maker');
+    if (fullText.includes('poll')) features.push('Polls');
+
+    // Audience
+    let audience: string | undefined;
+    if (fullText.includes('team') || fullText.includes('enterprise') || fullText.includes('business')) {
         audience = '🏢 For Teams';
-    } else if (t.includes('personal') || t.includes('freelance') || t.includes('individual') || t.includes('simple') || t.includes('solo')) {
+    } else if (fullText.includes('personal') || fullText.includes('freelance') || fullText.includes('solo')) {
         audience = '👤 For Solo';
     }
 
-    return { features, pricing, audience };
-}
+    // 3. Phân loại App/Resource (Quan trọng để lọc rác)
+    // Nếu tiêu đề/snippet chứa động từ hành động hoặc danh từ công cụ
+    const isAppSignal = [
+        'maker', 'builder', 'creator', 'generator', 'platform', 'tool', 'software', 'app',
+        'create', 'build', 'make', 'generate', 'design', 'download'
+    ].some(k => fullText.includes(k));
 
-// 3. Hàm chuẩn hóa App Item
-function normalizeAppItem(item: any, domainCategory: string): AppItem | null {
-    const domain = item.domain || '';
-    const title = item.title || '';
-    const snippet = item.snippet || '';
-    const fullText = `${title} ${snippet}`;
+    // Loại trừ báo chí/tin tức nếu không phải là review
+    const isNews = domainCategory === 'NEWS';
     
-    if (domainCategory === 'FORUM') return null;
-
-    const { features, pricing, audience } = analyzeSnippet(fullText);
-    const { rating, count } = extractRating(item);
-
+    // Logic quyết định Type
     let type: 'app' | 'template' | 'resource' = 'resource';
-    let ctaText = 'Visit';
-
-    const isTemplate = PRODUCT_INTENT.TEMPLATE.some(k => fullText.toLowerCase().includes(k));
-    const isApp = PRODUCT_INTENT.APP.some(k => fullText.toLowerCase().includes(k)) || features.length > 0 || rating !== undefined;
-
-    if (isTemplate) {
+    
+    if (fullText.includes('template') || fullText.includes('theme') || fullText.includes('kit')) {
         type = 'template';
-        ctaText = 'Template';
-    } else if (isApp) {
+    } else if (isAppSignal && !isNews) {
         type = 'app';
-        ctaText = 'Get App'; 
+    }
+
+    // CTA Text
+    let ctaText = 'Visit';
+    if (type === 'app') ctaText = 'Get App';
+    else if (type === 'template') ctaText = 'View Template';
+
+    // Rating (Cố gắng lấy từ rich snippet extension nếu có dạng "4.5 (200)")
+    let rating: number | undefined;
+    let reviewCount: string | undefined;
+    
+    // Regex tìm rating trong extension text (VD: "4.5/5" hoặc "4.8")
+    const ratingMatch = extensionText.match(/(\d(\.\d)?)\s*(\/|\(|\sstars)/);
+    if (ratingMatch) {
+        const val = parseFloat(ratingMatch[1]);
+        if (!isNaN(val) && val <= 5) rating = val;
     }
 
     if (rating && rating >= 4.5) features.unshift('🔥 Top Rated');
 
     return {
-        name: getBrandName(domain),
-        domain: domain,
-        url: item.link,
-        description: snippet,
+        name: getBrandName(item.domain), 
+        domain: item.domain || '',
+        url: item.link || '',
+        description: item.snippet || '', // Fallback nếu snippet rỗng
         type,
-        ctaText,
         pricingModel: pricing,
-        features: features.slice(0, 4),
+        features: features.slice(0, 4), // Lấy tối đa 4 tags
         rating,
-        reviewCount: count,
+        reviewCount,
+        ctaText,
         audience
     };
 }
@@ -308,6 +330,7 @@ export const load: PageServerLoad = async ({ params }) => {
             });
         }
 
+        // --- RELATED SEARCHES (GIỮ NGUYÊN NHƯ CŨ) ---
         let rawIdeas: string[] = [];
         if (rawData?.related_searches) rawIdeas.push(...rawData.related_searches.map(s => s.query));
         if (rawData?.related_questions) rawIdeas.push(...rawData.related_questions.map(q => q.question));
@@ -316,10 +339,39 @@ export const load: PageServerLoad = async ({ params }) => {
         const pivotIdeas = await getKeywordIdeas(apiPivotIdeas, countryCode, readableKeyword);
 
         // Sort: App có rating/features lên đầu
+        // apps.sort((a, b) => {
+        //     const scoreA = (a.type === 'app' ? 20 : 0) + (a.rating || 0) + (a.features.length * 2);
+        //     const scoreB = (b.type === 'app' ? 20 : 0) + (b.rating || 0) + (b.features.length * 2);
+        //     return scoreB - scoreA;
+        // });
         apps.sort((a, b) => {
-            const scoreA = (a.type === 'app' ? 20 : 0) + (a.rating || 0) + (a.features.length * 2);
-            const scoreB = (b.type === 'app' ? 20 : 0) + (b.rating || 0) + (b.features.length * 2);
-            return scoreB - scoreA;
+            // 1. Rating (Hệ số 10.000): Ưu tiên tuyệt đối số 1.
+            // Có rating là bố, không bàn cãi.
+            const ratingA = (a.rating || 0) * 10000;
+            const ratingB = (b.rating || 0) * 10000;
+
+            // 2. Độ giàu thông tin (Richness) - QUAN TRỌNG NHÌ
+            // Đếm số lượng feature tìm được (Free, AI, No Code...).
+            // Mỗi feature = 100 điểm. Max 4 feature = 400 điểm.
+            // Logic cũ: feature có 10đ -> Quá thấp.
+            const featA = (a.features?.length || 0) * 100;
+            const featB = (b.features?.length || 0) * 100;
+
+            // 3. Loại (Type) - QUAN TRỌNG BA
+            // App chỉ được cộng 50 điểm thôi (ít hơn 1 feature).
+            // Nghĩa là: Resource có 1 feature (100đ) vẫn hơn App rỗng (50đ).
+            const typeA = a.type === 'app' ? 50 : 0;
+            const typeB = b.type === 'app' ? 50 : 0;
+
+            // 4. Độ dài mô tả (Description) - Tie-breaker
+            // Thằng nào mô tả dài hơn chút thì ưu tiên nhẹ (tránh mấy thằng rỗng tuếch)
+            const descA = (a.description || '').length > 20 ? 10 : 0;
+            const descB = (b.description || '').length > 20 ? 10 : 0;
+
+            const scoreA = ratingA + featA + typeA + descA;
+            const scoreB = ratingB + featB + typeB + descB;
+
+            return scoreB - scoreA; // Giảm dần
         });
 
         const verdict = analyzeMarket(apps, seedingTargets);
