@@ -92,12 +92,16 @@ export interface AppItem {
     url: string;
     description: string;
     type: 'app' | 'template' | 'resource';
-    pricingModel: 'Free' | 'Freemium' | 'Paid' | 'Unknown';
+    pricingModel: string;
     features: string[];
     rating?: number;
     reviewCount?: string;
     ctaText: string;
-    audience?: string;
+    pros?: string;
+    cons?: string;
+    audience?: string; // Ví dụ: "For HR & Recruiters"
+    platforms?: string[]; // Ví dụ: ["Web", "iOS", "Android"]
+    use_cases?: string[]; // Ví dụ: ["Event Reg", "Employee Feedback"]
 }
 
 export interface AnalysisResult {

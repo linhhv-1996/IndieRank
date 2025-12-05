@@ -2,81 +2,110 @@
 import { GROQ_API_KEY } from '$env/static/private';
 import type { AppItem, SeedingTarget } from '$lib/types';
 
-export async function generateMarketReport(
-    keyword: string, 
-    apps: AppItem[], 
-    targets: SeedingTarget[]
-): Promise<string> {
-    if (!GROQ_API_KEY) {
-        console.warn('⚠️ Missing GROQ_API_KEY in .env');
-        return '';
-    }
+// --- HÀM 1: LÀM SẠCH DATA & VIẾT LẠI MÔ TẢ ---
+export async function extractComparisonData(keyword: string, apps: AppItem[]): Promise<AppItem[]> {
+    if (!GROQ_API_KEY) return apps;
 
-    // 1. Lọc data App
-    const candidates = apps
-        .slice(0, 10)
-        .map(a => `- Name: ${a.name} | Pricing: ${a.pricingModel} | Features: ${a.features.join(', ')} | Rating: ${a.rating || 'N/A'}`)
-        .join('\n');
-        
-    // 2. Lọc data Discussion (Chỉ lấy nếu API thực sự trả về)
-    const discussionList = targets
-        .filter(t => {
-            const s = t.source.toLowerCase();
-            return s.includes('reddit') || s.includes('hacker') || s.includes('indie') || s.includes('quora');
-        })
-        .slice(0, 5)
-        .map(t => `- "${t.title}" (Source: ${t.source})`);
+    const candidates = apps.slice(0, 15).map((app, index) => ({
+        id: index,
+        // 🔥 QUAN TRỌNG: Gửi cả Rating/Review đã parse được cho AI biết
+        text: `Title: ${app.name} | Snippet: ${app.description} | Initial_Price: ${app.pricingModel} | Rating_Found: ${app.rating || 'N/A'}`
+    }));
 
-    const voices = discussionList.join('\n');
-    const hasCommunityData = discussionList.length > 0;
-
-    // 3. PROMPT "BUYING GUIDE" (Đã fix lỗi ảo tưởng)
-    // Chỉ thị rõ: Có data thì dùng, không có thì đưa lời khuyên chung.
     const prompt = `
-    Role: Objective Software Reviewer.
-    Topic: Quick buying guide for "${keyword}".
+    Role: Expert SaaS Copywriter.
+    Task: Analyze tools for "${keyword}" and rewrite metadata for a comparison grid.
+    Input: ${JSON.stringify(candidates)}
     
-    [Real-time Search Data]
-    ${candidates}
+    Instructions:
+    Return a JSON array (key: "items") with these fields:
     
-    [Community Discussions (Might be empty)]
-    ${voices}
-
-    Task: Write a short "Quick Pick" summary (max 120 words).
+    1. "type": "app" (software), "template", or "resource".
+    2. "pricing": One of ["Free", "Freemium", "Paid", "Open Source", "Free Trial"].
     
-    Guidelines:
-    - Be direct. No intro fluff like "There are many tools".
-    - Base "Top Choice" strictly on the provided Ratings/Features in Data.
-    - IMPORTANT: If [Community Discussions] is empty, DO NOT invent/hallucinate opinions. Instead, give a general "Pro Tip" for this specific software category (e.g., "Check for API support").
+    3. "description": WRITE A BRAND NEW DESCRIPTION (Critical).
+       - TARGET LENGTH: 130 to 160 characters. (Do not output less than 120 chars).
+       - STYLE: Professional, benefit-driven, punchy.
+       - TEMPLATE: [Action Verb] [Key Benefit] + [Secondary Feature/Proof] + [No-friction Statement].
+       - EXAMPLE INPUT: "Free jpg to pdf converter online."
+       - EXAMPLE OUTPUT: "Instantly convert JPG images to professional PDFs without quality loss. Works securely in your browser with no registration or watermarks required."
+       - IF INPUT IS SHORT: You MUST expand it by inferring common features like "No signup", "Secure encryption", "Works on Mac/PC", "Fast processing".
     
-    Required HTML Format:
-    <p><strong>🏆 Top Choice:</strong> [Pick the best tool]. Why: [1 factual reason from data].</p>
-    <p><strong>💰 Best Value:</strong> [Pick a Free/Freemium tool]. Ideal for [Who?].</p>
-    <p><strong>💡 Pro Tip:</strong> [If community data exists: Summarize the main complaint/praise. If NO community data: Give a generic advice on what to look for when buying this type of tool].</p>
+    4. "audience": e.g. "Freelancers", "Enterprises", "Students".
+    5. "platforms": e.g. ["Web", "iOS", "Android"].
+    6. "specific_features": 3 distinct features (e.g. "Batch Processing", "OCR").
+    7. "rating": Estimate 0-5 if valid, else null.
+    
+    Output JSON Format: { "items": [...] }
     `;
 
     try {
         const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
             method: 'POST',
-            headers: {
-                'Authorization': `Bearer ${GROQ_API_KEY}`,
-                'Content-Type': 'application/json'
-            },
+            headers: { 'Authorization': `Bearer ${GROQ_API_KEY}`, 'Content-Type': 'application/json' },
             body: JSON.stringify({
                 messages: [{ role: 'user', content: prompt }],
                 model: 'llama-3.3-70b-versatile',
-                temperature: 0.3,
-                max_tokens: 350
+                temperature: 0.3, 
+                response_format: { type: "json_object" }
             })
         });
 
-        if (!response.ok) throw new Error(response.statusText);
+        const data = await response.json();
+        const content = JSON.parse(data.choices?.[0]?.message?.content || '{}');
+        const items = content.items || [];
 
+        return apps.map((app, index) => {
+            const info = items.find((i: any) => i.id === index);
+            if (!info) return app;
+
+            return {
+                ...app,
+                type: info.type || 'app',
+                description: info.description || app.description, 
+                pricingModel: info.pricing || app.pricingModel,
+                features: info.specific_features?.length > 0 ? info.specific_features : app.features, 
+                rating: info.rating || app.rating, // Ưu tiên AI confirm lại
+                audience: info.audience,
+                platforms: info.platforms
+            };
+        });
+    } catch (e) {
+        console.error('AI Extract Error:', e);
+        return apps;
+    }
+}
+
+// --- HÀM 2: TẠO BÁO CÁO (Giữ nguyên logic cũ) ---
+export async function generateMarketReport(
+    keyword: string, 
+    apps: AppItem[], 
+    targets: SeedingTarget[]
+): Promise<string> {
+    if (!GROQ_API_KEY) return '';
+    const topApps = apps.filter(a => a.type === 'app').slice(0, 5).map(a => `${a.name} (${a.pricingModel})`).join(', ');
+    const prompt = `
+    Role: Brutally Honest Software Reviewer.
+    Topic: Buying advice for "${keyword}".
+    Top Candidates: ${topApps}.
+    Task: Generate a JSON report.
+    1. "editor_choice": { "name", "summary", "best_for", "rating", "pros" (array), "con" }
+    2. "best_value": { "name", "summary", "price_tag", "best_for" }
+    3. "pro_tip": { "title", "content" }
+    Output JSON Only.
+    `;
+    try {
+        const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+            method: 'POST',
+            headers: { 'Authorization': `Bearer ${GROQ_API_KEY}`, 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                messages: [{ role: 'user', content: prompt }],
+                model: 'llama-3.3-70b-versatile',
+                temperature: 0.2,
+                response_format: { type: "json_object" }
+            })
+        });
         const data = await response.json();
         return data.choices?.[0]?.message?.content || '';
-
-    } catch (e) {
-        console.error('AI Gen Error:', e);
-        return '';
-    }
+    } catch (e) { return ''; }
 }
