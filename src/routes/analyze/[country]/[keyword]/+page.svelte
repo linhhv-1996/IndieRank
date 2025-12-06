@@ -156,12 +156,12 @@
                 
                 <div class="flex flex-col items-center">
                     <div class="flex items-end gap-1.5 leading-none mb-1.5">
-                        <span class="text-2xl font-bold text-white">{reportData.editor_choice.rating}</span>
+                        <span class="text-2xl font-bold text-white">{reportData?.editor_choice?.rating}</span>
                         <span class="text-xs text-zinc-600 font-medium mb-0.5">/10</span>
                     </div>
                     <div class="flex gap-0.5">
                         {#each Array(5) as _, i}
-                            <svg class="w-2.5 h-2.5 {i < Math.round(reportData.editor_choice.rating / 2) ? 'text-amber-500 fill-amber-500' : 'text-zinc-800 fill-zinc-800'}" viewBox="0 0 24 24"><path d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z"/></svg>
+                            <svg class="w-2.5 h-2.5 {i < Math.round(reportData?.editor_choice?.rating / 2) ? 'text-amber-500 fill-amber-500' : 'text-zinc-800 fill-zinc-800'}" viewBox="0 0 24 24"><path d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z"/></svg>
                         {/each}
                     </div>
                 </div>

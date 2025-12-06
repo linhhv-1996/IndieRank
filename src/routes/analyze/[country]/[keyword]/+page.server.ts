@@ -1,27 +1,9 @@
-// src/routes/analyze/[country]/[keyword]/+page.server.ts
 import type { PageServerLoad } from './$types';
 import type { RawApiResponse, AnalysisResult, AppItem, SeedingTarget, Verdict } from '$lib/types';
-import { PRIVATE_VALUESERP_API_KEY } from '$env/static/private';
-import { COUNTRIES } from '$lib/country_config';
 import { DOMAIN_CATEGORIES } from '$lib/constants';
 import { adminDB } from '$lib/server/firebase';
-import { Timestamp } from 'firebase-admin/firestore';
-import { generateMarketReport, extractComparisonData } from '$lib/server/gemini';
 
-// --- 🔥 CONFIG ---
-// Bật lại true để test fix lỗi AI, sau đó nhớ tắt đi
-const FORCE_AI_REGENERATE = false; 
-const ENABLE_DB_UPDATE = true;
-
-// --- HELPERS ---
-const COUNTRY_MAP = COUNTRIES.reduce((acc, curr) => {
-    let hl = 'en';
-    if (curr.gl === 'vn') hl = 'vi';
-    else if (curr.gl === 'tw') hl = 'zh-TW';
-    acc[curr.gl] = { gl: curr.gl, hl: hl, google_domain: curr.domain };
-    return acc;
-}, {} as Record<string, { gl: string; hl: string; google_domain: string }>);
-
+// --- HELPERS (Giữ nguyên để xử lý hiển thị) ---
 function unslugify(slug: string) {
     return slug.replace(/-/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
 }
@@ -58,14 +40,7 @@ function getDomainCategory(domain: string): keyof typeof DOMAIN_CATEGORIES | 'UN
     return 'UNKNOWN';
 }
 
-// 🔥 HELPER MỚI: Dọn sạch chuỗi JSON từ AI (Xóa markdown, backticks)
-function cleanJsonString(str: string): string {
-    if (!str) return '';
-    // Xóa ```json ở đầu, ``` ở cuối, và trim khoảng trắng
-    return str.replace(/```json/g, '').replace(/```/g, '').trim();
-}
-
-// Basic Parser
+// Basic Parser (Dùng để fallback nếu DB chưa có processed_apps xịn, hoặc để lấy Seeding Targets)
 function createBasicAppItem(item: any, domainCategory: string): AppItem | null {
     if (domainCategory === 'FORUM') return null;
 
@@ -73,7 +48,7 @@ function createBasicAppItem(item: any, domainCategory: string): AppItem | null {
     const title = (item.title || '').toLowerCase();
     const fullText = `${title} ${snippet}`;
     
-    // Rich Snippet
+    // Rich Snippet extraction (Simplified)
     const extensions = item.rich_snippet?.top?.extensions || [];
     const detectedExt = item.rich_snippet?.top?.detected_extensions || {};
     
@@ -82,21 +57,14 @@ function createBasicAppItem(item: any, domainCategory: string): AppItem | null {
     let pricing: string = 'Unknown';
     let type: 'app' | 'template' | 'resource' = 'app';
 
-    // Parsing Logic
+    // Pricing & Rating Logic
     extensions.forEach((ext: string) => {
         const e = ext.toLowerCase().trim();
         const rateMatch = e.match(/^(\d(\.\d)?)/); 
         if (rateMatch) {
             const val = parseFloat(rateMatch[1]);
-            if (!isNaN(val) && val >= 0 && val <= 5) {
-                if (e.includes('(') || e.includes('stars') || e.includes('vote') || e.includes('review') || !e.includes(' ')) {
-                    rating = val;
-                    const countMatch = e.match(/\(([\d,]+)\)/);
-                    if (countMatch) reviewCount = countMatch[1];
-                }
-            }
+            if (!isNaN(val) && val >= 0 && val <= 5) rating = val;
         }
-
         if (e === 'free' || e.includes('free forever')) pricing = 'Free';
         else if (e.includes('free trial')) pricing = 'Free Trial';
         else if (e.includes('price') || e.includes('buy')) pricing = 'Paid';
@@ -105,19 +73,12 @@ function createBasicAppItem(item: any, domainCategory: string): AppItem | null {
     if (!rating && detectedExt.rating) rating = detectedExt.rating;
     if (!reviewCount && detectedExt.reviews) reviewCount = detectedExt.reviews;
 
-    // Detect Type
-    if (fullText.includes('template') || fullText.includes('theme') || fullText.includes('kit')) {
-        type = 'template';
-    } else if (fullText.includes('list of') || fullText.includes('top 10') || fullText.includes('best') && !fullText.includes('download')) {
-        type = 'resource';
-    }
+    // Type Logic
+    if (fullText.includes('template') || fullText.includes('theme')) type = 'template';
+    else if (fullText.includes('list of') || fullText.includes('best')) type = 'resource';
 
     if (pricing === 'Unknown') {
-        if (fullText.includes('open source')) pricing = 'Open Source';
-        else if (fullText.includes('free trial')) pricing = 'Free Trial';
-        else if (fullText.includes('free forever')) pricing = 'Free';
-        else if (fullText.includes('pricing')) pricing = 'Freemium'; 
-        else if (fullText.includes('free')) pricing = 'Freemium';
+        if (fullText.includes('free')) pricing = 'Freemium';
     }
 
     let features = extensions.filter((ext: string) => {
@@ -135,89 +96,24 @@ function createBasicAppItem(item: any, domainCategory: string): AppItem | null {
         features, 
         rating,
         reviewCount, 
-        ctaText: 'Visit',
-        audience: undefined
+        ctaText: 'Visit'
     };
-}
-
-function analyzeMarket(apps: AppItem[], seedingTargets: SeedingTarget[]): Verdict {
-    let opportunityScore = 0;
-    if (seedingTargets.length >= 3) opportunityScore += 40;
-    const realAppsCount = apps.filter(a => a.type === 'app').length;
-    if (realAppsCount < 5) opportunityScore += 20;
-
-    if (opportunityScore >= 40) return { status: "High Demand", title: "Underserved Market", description: `Active discussions found but few dominant tools.`, color: "green" };
-    if (opportunityScore >= 15) return { status: "Community Buzz", title: "Active Discussions", description: `Good engagement, users discussing features.`, color: "yellow" };
-    return { status: "Well Established", title: "Saturated Market", description: `Many strong brands dominate this niche.`, color: "red" };
-}
-
-async function saveRawToFirebase(docId: string, rawData: RawApiResponse, meta: any) {
-    try {
-        await adminDB.collection('analysis').doc(docId).set({
-            ...meta, created_at: Timestamp.now(), raw_response: JSON.stringify(rawData)
-        }, { merge: true });
-    } catch (e) { console.error('DB Error:', e); }
-}
-
-async function updateAnalysisInDB(docId: string, data: { marketReport?: string, processedApps?: AppItem[] }) {
-    if (!ENABLE_DB_UPDATE) return;
-    try {
-        const updateData: any = { updated_at: Timestamp.now() };
-        if (data.marketReport) updateData.market_report = data.marketReport;
-        if (data.processedApps) {
-            updateData.processed_apps = JSON.stringify(data.processedApps);
-        }
-        await adminDB.collection('analysis').doc(docId).update(updateData);
-    } catch (e) { console.error('DB Update Error:', e); }
 }
 
 function removeDuplicateApps(apps: AppItem[]): AppItem[] {
     const uniqueMap = new Map<string, AppItem>();
-
     for (const app of apps) {
         const domainKey = app.domain.toLowerCase().replace(/^www\./, '');
-        
-        if (!uniqueMap.has(domainKey)) {
-            uniqueMap.set(domainKey, app);
-        } else {
-            const existing = uniqueMap.get(domainKey)!;
-            
-            // Merge Pricing
-            if (existing.pricingModel === 'Unknown' && app.pricingModel !== 'Unknown') {
-                existing.pricingModel = app.pricingModel;
-            }
-
-            // Merge Features
-            const combinedFeatures = new Set([...existing.features, ...app.features]);
-            existing.features = Array.from(combinedFeatures).slice(0, 4);
-        }
+        if (!uniqueMap.has(domainKey)) uniqueMap.set(domainKey, app);
     }
-    
     return Array.from(uniqueMap.values());
 }
 
 function sortAppsSmart(apps: AppItem[]) {
     return apps.sort((a, b) => {
-        const getScore = (item: AppItem) => {
-            let score = 0;
-            if (item.type === 'app') score += 20000;
-            else if (item.type === 'template') score += 10000;
-            else score += 0;
-
-            const rating = item.rating || 0;
-            score += rating * 200;
-
-            const reviews = item.reviewCount 
-                ? parseInt(item.reviewCount.toString().replace(/[^0-9]/g, '')) 
-                : 0;
-            if (reviews > 0) {
-                score += Math.log10(reviews + 1) * 50; 
-            }
-
-            if (item.pricingModel && item.pricingModel !== 'Unknown') score += 100;
-            return score;
-        };
-        return getScore(b) - getScore(a);
+        let scoreA = (a.type === 'app' ? 20 : 0) + (a.rating || 0) * 2;
+        let scoreB = (b.type === 'app' ? 20 : 0) + (b.rating || 0) * 2;
+        return scoreB - scoreA;
     });
 }
 
@@ -226,7 +122,7 @@ async function getInternalLinks(country: string, currentKeyword: string): Promis
         const snapshot = await adminDB.collection('analysis')
             .where('country', '==', country.toLowerCase())
             .orderBy('created_at', 'desc')
-            .limit(50) 
+            .limit(20) 
             .select('keyword')
             .get();
 
@@ -234,13 +130,13 @@ async function getInternalLinks(country: string, currentKeyword: string): Promis
             .map(d => d.data().keyword)
             .filter(k => k && k.toLowerCase() !== currentKeyword.toLowerCase());
         
-        return links.sort(() => 0.5 - Math.random()).slice(0, 10);
+        return links.sort(() => 0.5 - Math.random()).slice(0, 8);
     } catch (e) {
-        console.error('SEO Internal Links Error:', e);
         return []; 
     }
 }
 
+// --- MAIN LOAD FUNCTION ---
 export const load: PageServerLoad = async ({ params }) => {
     const { country, keyword: rawKeyword } = params;
     const readableKeyword = unslugify(rawKeyword);
@@ -252,140 +148,88 @@ export const load: PageServerLoad = async ({ params }) => {
         let apps: AppItem[] = [];
         let seedingTargets: SeedingTarget[] = [];
         let pivotIdeas: string[] = [];
-        let isDataEnriched = false;
 
-        // 1. Cache Check
         try {
+            // 1. Chỉ lấy data từ DB
             const doc = await adminDB.collection('analysis').doc(docId).get();
-            if (doc.exists) {
-                const d = doc.data();
-                if (d?.raw_response) rawData = JSON.parse(d.raw_response);
-                
-                if (d?.processed_apps && !FORCE_AI_REGENERATE) {
-                    try {
-                        const storedApps = d.processed_apps;
-                        // Handle cả string lẫn object cũ
-                        apps = typeof storedApps === 'string' ? JSON.parse(storedApps) : storedApps;
-                        
-                        if (Array.isArray(apps) && apps.length > 0) {
-                            isDataEnriched = true;
-                        }
-                    } catch (e) {
-                        apps = [];
-                        isDataEnriched = false;
-                    }
-                }
-                
-                if (d?.market_report && !FORCE_AI_REGENERATE) {
-                    // Cố gắng parse thử xem có phải JSON không, nếu không thì coi như chưa có report
-                    try {
-                        // Nếu là string JSON valid, giữ nguyên để gửi xuống client
-                        // Nếu là text rác, client sẽ không parse được -> reset
-                        const testParse = JSON.parse(d.market_report);
-                        if (testParse && typeof testParse === 'object') {
-                            marketReport = d.market_report;
-                        }
-                    } catch (e) {
-                        console.log("Old report invalid, regenerating...");
-                        marketReport = ''; // Reset để AI chạy lại
-                    }
-                }
+            
+            if (!doc.exists) {
+                // Nếu không có trong DB -> Trả về lỗi/rỗng ngay lập tức
+                return { 
+                    verdict: { status: "No Data", title: "Not Analyzed", description: "Keyword chưa được scan.", color: "gray" }, 
+                    apps: [], 
+                    seedingTargets: [], 
+                    pivotIdeas: [] 
+                };
             }
-        } catch (e) {}
 
-        // 2. SERP API Call
-        if (!rawData) {
-            try {
-                const config = COUNTRY_MAP[country.toLowerCase()] || COUNTRY_MAP['us'];
-                const url = new URL('[https://api.valueserp.com/search](https://api.valueserp.com/search)');
-                url.searchParams.append('api_key', PRIVATE_VALUESERP_API_KEY);
-                url.searchParams.append('q', readableKeyword);
-                url.searchParams.append('gl', config.gl);
-                url.searchParams.append('hl', 'en');
-                url.searchParams.append('google_domain', config.google_domain);
-                url.searchParams.append('max_page', '2');
-                url.searchParams.append('include_answer_box', 'true');
-                url.searchParams.append('include_ai_overview', 'true');
-                const res = await fetch(url.toString());
-                if (!res.ok) throw new Error('API Error');
-                rawData = await res.json();
-                saveRawToFirebase(docId, rawData!, { keyword: readableKeyword, slug: rawKeyword, country });
-            } catch (e) {
-                return { verdict: { status: "Error", title: "API Failed", description: "", color: "red" }, apps: [], seedingTargets: [], pivotIdeas: [] };
+            const d = doc.data();
+            
+            // 2. Lấy Raw Response (Để parse Seeding Targets hoặc fallback Apps)
+            if (d?.raw_response) {
+                rawData = typeof d.raw_response === 'string' ? JSON.parse(d.raw_response) : d.raw_response;
             }
-        }
 
-        // 3. Parsing & Deduping
-        if ((!isDataEnriched || FORCE_AI_REGENERATE) && rawData) {
-            const organic = rawData.organic_results || [];
-            apps = []; 
+            // 3. Lấy Processed Apps (Nếu đã có sẵn do AI làm trước đó)
+            if (d?.processed_apps) {
+                try {
+                    apps = typeof d.processed_apps === 'string' ? JSON.parse(d.processed_apps) : d.processed_apps;
+                } catch (e) { apps = []; }
+            }
 
-            organic.forEach(item => {
-                if (!item.link) return;
-                const cat = getDomainCategory(item.domain || '');
+            // 4. Lấy Market Report (Nếu đã có)
+            if (d?.market_report) {
+                marketReport = d.market_report; // String JSON
+            }
+
+            // 5. Local Processing (Chạy đè để lấy Seeding Targets từ Raw Data)
+            // Vì Seeding Targets thường không lưu vào processed_apps
+            if (rawData && rawData.organic_results) {
+                const organic = rawData.organic_results;
                 
-                if (cat === 'FORUM' || rawData?.discussions_and_forums?.some((d: any) => d.link === item.link)) {
-                    seedingTargets.push({ 
-                        source: getBrandName(item.domain), 
-                        title: item.title, 
-                        url: item.link, 
-                        meta: extractMetaFromOrganic(item), 
-                        isHijackable: true 
-                    });
-                    return;
-                }
+                // Nếu DB chưa có apps xịn (apps rỗng), thì dùng code chay để tạo list apps tạm
+                const useFallbackApps = apps.length === 0;
 
-                const app = createBasicAppItem(item, cat);
-                if (app) {
-                    if (cat !== 'NEWS') {
-                        apps.push(app);
+                organic.forEach((item: any) => {
+                    if (!item.link) return;
+                    const cat = getDomainCategory(item.domain || '');
+                    
+                    // Lọc Forum/Seeding
+                    if (cat === 'FORUM' || rawData?.discussions_and_forums?.some((d: any) => d.link === item.link)) {
+                        seedingTargets.push({ 
+                            source: getBrandName(item.domain), 
+                            title: item.title, 
+                            url: item.link, 
+                            meta: extractMetaFromOrganic(item), 
+                            isHijackable: true 
+                        });
+                        return;
                     }
-                }
-            });
 
-            apps = removeDuplicateApps(apps);
-        }
-
-        pivotIdeas = await getInternalLinks(country, readableKeyword);
-
-        // 4. AI Enrichment & Final Sort
-        // Logic: Chạy AI nếu chưa có data, hoặc chưa có report, hoặc force chạy
-        if ((!isDataEnriched || !marketReport || FORCE_AI_REGENERATE) && apps.length > 0) {
-            try {
-                apps = sortAppsSmart(apps);
-                const candidates = apps.slice(0, 15);
-                const [enrichedApps, rawReport] = await Promise.all([
-                    extractComparisonData(readableKeyword, candidates),
-                    generateMarketReport(readableKeyword, candidates.filter(a => a.type === 'app'), seedingTargets)
-                ]);
-
-                enrichedApps.forEach((item, idx) => {
-                    apps[idx] = item; 
+                    // Fallback Apps creation
+                    if (useFallbackApps) {
+                        const app = createBasicAppItem(item, cat);
+                        if (app && cat !== 'NEWS') {
+                            apps.push(app);
+                        }
+                    }
                 });
 
-                for (let i = 15; i < apps.length; i++) {
-                    if (!apps[i].rating) apps[i].type = 'resource';
+                if (useFallbackApps) {
+                    apps = removeDuplicateApps(apps);
+                    apps = sortAppsSmart(apps);
                 }
+            }
 
-                // 🔥 Clean JSON String trước khi dùng
-                const cleanReport = cleanJsonString(rawReport);
-                
-                // Chỉ save nếu JSON valid (độ dài > 10 là check sơ bộ)
-                if (cleanReport && cleanReport.length > 10) {
-                    marketReport = cleanReport;
-                }
-                
-                apps = sortAppsSmart(apps);
+            // 6. Lấy Pivot Ideas (Internal Links từ DB)
+            pivotIdeas = await getInternalLinks(country, readableKeyword);
 
-                await updateAnalysisInDB(docId, { marketReport, processedApps: apps });
-            } catch (e) { console.error('AI Error:', e); }
+        } catch (e) {
+            console.error('DB Fetch Error:', e);
+            return { verdict: { status: "Error", title: "DB Error", description: "Lỗi truy xuất dữ liệu.", color: "red" }, apps: [], seedingTargets: [], pivotIdeas: [] };
         }
 
-        if (isDataEnriched) {
-            apps = sortAppsSmart(apps);
-        }
-
-        const verdict = analyzeMarket(apps, seedingTargets);
+        const verdict = { status: "Well Established", title: "Saturated Market", description: `Many strong brands dominate this niche.`, color: "red" };
         return { verdict, apps, seedingTargets, pivotIdeas, marketReport };
     };
 

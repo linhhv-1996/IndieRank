@@ -83,7 +83,7 @@ export interface Verdict {
     status: string;
     title: string;
     description: string;
-    color: 'green' | 'red' | 'yellow';
+    color: string;
 }
 
 export interface AppItem {
