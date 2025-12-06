@@ -1,151 +1,189 @@
-// src/routes/admin/manual/+page.server.ts
-import { adminDB } from '$lib/server/firebase';
 import { fail } from '@sveltejs/kit';
 import type { Actions } from './$types';
+import { DOMAIN_CATEGORIES } from '$lib/constants';
+import { slugify } from '$lib/utils';
+
+function getBrandName(domain: string): string {
+    if (!domain) return 'Site';
+    const parts = domain.replace(/^(www|m|app)\./, '').split('.');
+    return parts[0].charAt(0).toUpperCase() + parts[0].slice(1);
+}
+
+function getDomainCategory(domain: string): string {
+    const d = domain.toLowerCase();
+    for (const [category, keywords] of Object.entries(DOMAIN_CATEGORIES)) {
+        if (keywords.some(k => d.includes(k))) return category;
+    }
+    return 'UNKNOWN';
+}
+
+function extractRichInfo(item: any): string {
+    const rich = item.rich_snippet?.top;
+    const detected = rich?.detected_extensions || {};
+    const extensions = rich?.extensions || [];
+
+    let info = [];
+    if (detected.rating) info.push(`Real Rating: ${detected.rating}/5`);
+    if (detected.reviews) info.push(`Reviews: ${detected.reviews}`);
+    if (extensions.length > 0) info.push(`Extra Info: ${extensions.join(' | ')}`);
+
+    return info.length > 0 ? info.join(' | ') : 'No Rich Data';
+}
 
 export const actions: Actions = {
-    generate_prompts: async ({ request }) => {
+    process_serp: async ({ request }) => {
         const formData = await request.formData();
         const keyword = formData.get('keyword') as string;
-        const country = formData.get('country') as string || 'us';
+        const rawJsonStr = formData.get('rawJson') as string;
 
-        if (!keyword) return fail(400, { missing: true });
+        if (!keyword || !rawJsonStr) return fail(400, { missing: true });
 
         try {
-            // 1. Tạo ID từ keyword (giống logic luồng chính)
-            // Lưu ý: Logic slugify này phải khớp với lúc bạn lưu. 
-            // Nếu bạn dùng thư viện slugify, hãy import nó. Ở đây mình dùng regex đơn giản.
-               
-            
-            const docId = `${keyword}`;
+            const rawData = JSON.parse(rawJsonStr);
+            const organicResults = rawData.organic_results || [];
 
-            console.log(docId);
+            // 1. BE Logic: seeding_targets
+            const seedingList = organicResults
+                .filter((item: any) => getDomainCategory(item.domain || '') === 'FORUM')
+                .map((item: any) => ({
+                    source: getBrandName(item.domain),
+                    title: item.title,
+                    url: item.link,
+                    meta: item.displayed_link || 'Discussion',
+                    isHijackable: true
+                }));
+            const seedingTargetsJson = JSON.stringify(seedingList, null, 2);
 
-            // 2. Lấy dữ liệu RAW từ Firestore
-            const docRef = adminDB.collection('analysis').doc(docId);
-            const docSnap = await docRef.get();
+            // 2. Prepare Context
+            const potentialApps = organicResults.filter((item: any) => {
+                const cat = getDomainCategory(item.domain || '');
+                return cat !== 'FORUM';
+            });
 
-            if (!docSnap.exists) {
-                return fail(404, { error: `Không tìm thấy dữ liệu cho keyword "${keyword}" (${country}) trong DB. Hãy chạy Scan trước.` });
-            }
+            // Lấy alternatives đơn giản để backup
+            const alternativesList = potentialApps.map((item: any) => ({
+                name: item.title,
+                domain: item.domain,
+                url: item.link
+            }));
+            const alternativesJson = JSON.stringify(alternativesList, null, 2);
 
-            const data = docSnap.data();
-            let rawData;
-
-            // Parse raw_response (vì nó thường được lưu dạng chuỗi JSON)
-            try {
-                rawData = typeof data?.raw_response === 'string' 
-                    ? JSON.parse(data.raw_response) 
-                    : data?.raw_response;
-            } catch (e) {
-                return fail(500, { error: 'Lỗi parse raw_response trong DB.' });
-            }
-
-            if (!rawData || !rawData.organic_results) {
-                return fail(400, { error: 'Data trong DB bị lỗi hoặc thiếu organic_results.' });
-            }
-
-            // 3. Chuẩn bị Context cho Prompt (Lấy Top 20 kết quả)
-            const organicResults = rawData.organic_results.slice(0, 20);
-            const contextData = organicResults.map((item: any, index: number) => {
+            const contextData = potentialApps.slice(0, 20).map((item: any, index: number) => {
                 return `[Result #${index + 1}]
+Domain: ${item.domain}
 Title: ${item.title}
-URL: ${item.link}
 Snippet: ${item.snippet}
-Price Hint: ${item.rich_snippet?.top?.extensions?.join(', ') || 'N/A'}
-Review Hint: ${item.rich_snippet?.top?.detected_extensions?.rating || 'N/A'} stars`;
+RICH_DATA: ${extractRichInfo(item)}`;
             }).join('\n-------------------\n');
 
-            // --- PROMPT 1: Processed Apps ---
+            // --- PROMPT 1: APPS (FIXED URL NEWLINE BUG) ---
             const promptApps = `
-Role: Data Analyst & Software Classifier.
-Task: Extract and refine a list of software/tools from the Google Search Results below.
+Role: Data Analyst.
+Keyword: "${keyword}"
+Task: Extract structured data for MAIN Apps found in SERP.
 
 SOURCE DATA:
 ${contextData}
 
-INSTRUCTIONS:
-1. Identify items that are "Apps", "SaaS", "Software", or "Templates". Ignore general blogs, news, or dictionaries.
-2. For each item, refine the data into a JSON object.
-3. Output ONLY a JSON Array under the key "processed_apps".
+STRICT GUIDELINES:
+1. **Rating**: USE "RICH_DATA" (e.g. "Real Rating: 4.8"). If missing, output 0. **DO NOT GUESS**.
+2. **Pricing**: Detect from Snippet/Rich Data. Default "Unknown".
+3. **URL**: 
+   - **CRITICAL**: The "url" value must be a clean string. **ABSOLUTELY NO NEWLINES** or trailing whitespace inside the quotes.
+   - Example Correct: "https://site.com"
+   - Example Wrong: "https://site.com\\n"
 
-JSON STRUCTURE PER ITEM:
-{
-  "name": "Brand Name (Clean)",
-  "domain": "rootdomain.com",
-  "url": "Direct link from source",
-  "description": "A compelling, benefit-driven description (120-150 chars). Rewrite the snippet.",
-  "type": "app" | "template" | "resource",
-  "pricingModel": "Free" | "Freemium" | "Paid" | "Free Trial" (Infer from snippets/price hints),
-  "features": ["Feature 1", "Feature 2", "Feature 3"] (Max 3, short),
-  "rating": 4.5 (Number. Use "Review Hint" if available, else estimate based on reputation. No N/A),
-  "reviewCount": "1,000+" (String. Estimate or use "Review Hint"),
-  "ctaText": "Visit"
-}
-
-OUTPUT FORMAT:
-{
-  "processed_apps": [ ... ]
-}
+OUTPUT JSON FORMAT (Array):
+[
+  {
+    "name": "Brand Name",
+    "domain": "clean.com",
+    "url": "https://full_url.com",
+    "description": "Benefit-driven description (max 140 chars)",
+    "type": "app",
+    "pricingModel": "Free",
+    "features": ["Tag1", "Tag2"],
+    "rating": 4.8,
+    "reviewCount": "1,250"
+  }
+]
 `;
 
-            // --- PROMPT 2: Market Report ---
-            // Mình dùng luôn raw data để bạn đỡ phải copy output của prompt 1 sang prompt 2.
+            // --- PROMPT 2: REPORT ---
             const promptReport = `
-Role: Senior Software Reviewer.
-Task: Write a concise market analysis report for "${keyword}" based on the Search Results below.
+Role: Software Reviewer.
+Keyword: "${keyword}"
+Task: Pick winners based on data.
 
 SOURCE DATA:
 ${contextData}
 
 INSTRUCTIONS:
-1. Analyze the top tools found in the data.
-2. Select the "Editor's Choice" (Best overall) and "Best Value" (Best free/cheap).
-3. Provide a "Pro Tip" for choosing in this niche.
-4. Output ONLY a JSON Object under the key "market_report".
+1. Editor's Choice: Tool with High Rating & Reputation.
+2. Best Value: Free/Cheap option.
 
-JSON STRUCTURE:
+OUTPUT JSON FORMAT:
 {
-    {
-      "editor_choice": {
-        "name": "Exact Brand Name",
-        "summary": "Why it is the winner (2 sentences).",
-        "best_for": "Target Audience (e.g. Teams, Freelancers)",
-        "rating": 4.8,
-        "pros": ["Pro 1", "Pro 2", "Pro 3"],
-        "con": "One main drawback"
-      }
-    },
-    {
-      "best_value": {
-        "name": "Exact Brand Name",
-        "summary": "Why it is the best value option.",
-        "price_tag": "Free / $Price",
-        "best_for": "Target Audience"
-      }
-    },
-    {
-      "pro_tip": {
-        "title": "Short Tip Title",
-        "content": "Actionable advice for buyers in this specific market."
-      }
-    }
+  "editor_choice": {
+    "name": "Brand Name",
+    "summary": "Why it wins.",
+    "best_for": "Target Audience",
+    "rating": 4.8,
+    "pros": ["Pro 1", "Pro 2"],
+    "con": "Weakness"
+  },
+  "best_value": {
+    "name": "Brand Name",
+    "summary": "Why best value.",
+    "price_tag": "Free / $Price",
+    "best_for": "Target Audience"
+  },
+  "pro_tip": {
+    "title": "Tip Title",
+    "content": "Tip Content"
+  }
 }
 `;
 
+            // --- PROMPT 3: ALTERNATIVES ---
+            const promptAlternatives = `
+Role: Research Assistant.
+Keyword: "${keyword}"
+Task: List 5-8 alternative tools mentioned in context.
+
+SOURCE DATA:
+${contextData}
+
+INSTRUCTIONS:
+1. Find competitors mentioned in titles like "Top 10..." or snippets.
+2. **CRITICAL**: "url" must NOT contain newlines.
+
+OUTPUT JSON FORMAT (Array):
+[
+  {
+    "name": "Tool Name",
+    "domain": "tool.com",
+    "url": "https://tool.com"
+  }
+]
+`;
 
 
-            return { 
-                success: true, 
-                keyword,
-                country,
-                promptApps, 
-                promptReport 
+            const slug = slugify(keyword);
+
+            return {
+                success: true,
+                slug,
+                seedingTargetsJson,
+                alternativesJson,
+                promptApps,
+                promptReport,
+                promptAlternatives
             };
 
         } catch (error: any) {
             console.error(error);
-            return fail(500, { error: error.message });
+            return fail(500, { error: 'Processing Error: ' + error.message });
         }
     }
 };

@@ -1,113 +1,117 @@
 <script lang="ts">
     import { goto } from '$app/navigation';
-    import { COUNTRIES } from '$lib/country_config';
     import { searchStore } from '$lib/stores';
     import { slugify } from '$lib/utils';
     import type { PageData } from './$types';
 
     let keyword = $searchStore.keyword;
-    let country = 'us';
+    // Bỏ biến country, mặc định là US
     let isScanning = false;
 
     export let data: PageData;
 
     function handleScan() {
-        if (!keyword) return;
+        if (!keyword.trim()) return;
         isScanning = true;
+        
+        // Giả lập loading tí cho nguy hiểm, rồi bay thẳng vào US
         setTimeout(() => {
             const slug = slugify(keyword);
             isScanning = false;
-            goto(`/analyze/${country}/${slug}`);
-        }, 500);
+            goto(`/analyze/us/${slug}`); 
+        }, 600);
     }
 </script>
 
-<div class="relative flex-grow flex flex-col items-center justify-center px-6 py-10 min-h-[calc(100vh-4rem)]">
+<div class="relative flex-grow flex flex-col items-center justify-center px-6 py-10 min-h-[calc(100vh-4rem)] overflow-hidden">
     <div class="hero-orbit"></div>
+    
+    <div class="w-full max-w-4xl mx-auto text-center relative z-10">
+        
+        <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-zinc-900/80 border border-zinc-800 backdrop-blur-md mb-8">
+            <span class="relative flex h-2 w-2">
+              <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+              <span class="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+            </span>
+            <span class="text-[10px] font-mono text-emerald-400 uppercase tracking-widest font-semibold">
+                Live Market Intelligence
+            </span>
+        </div>
 
-    <div class="w-full max-w-custom mx-auto text-center relative z-10">
-        <!-- Headline -->
-        <h1 class="text-4xl md:text-5xl lg:text-6xl font-medium tracking-tight text-white mb-4 leading-tight">
-            AI-powered shortcuts 
-            <span class="block text-gray-500">to the best tools.</span>
+        <h1 class="text-5xl md:text-6xl lg:text-7xl font-bold tracking-tight text-white mb-6 leading-[1.1]">
+            Find the Best Tools.<br>
+            <span class="text-transparent bg-clip-text bg-gradient-to-r from-zinc-400 to-zinc-600">Skip the SEO Spam.</span>
         </h1>
 
-        <p class="text-base md:text-lg text-subtle max-w-xl mx-auto mb-9">
-            Search for any “online X” tool.
-We turn messy Google results into a simple buying guide with ranked tools and real links, so you can pick one and move on.
+        <p class="text-base md:text-lg text-subtle max-w-2xl mx-auto mb-10 leading-relaxed">
+            We analyze thousands of search results to build instant <strong>comparison tables</strong> and <strong>unbiased rankings</strong> for any software category.
         </p>
 
-        <!-- Search Input with Country -->
-        <div class="w-full max-w-xl mx-auto">
-            <div class="relative flex items-center bg-card rounded-xl border border-border focus-within:border-accent focus-within:ring-2 focus-within:ring-accent/15 transition-all p-1.5 shadow-soft">
-                <!-- Country Select -->
-                <div class="relative border-r border-border pr-2 mr-2 shrink-0 overflow-hidden">
-            <select bind:value={country} class="w-full appearance-none bg-transparent text-white text-xs md:text-sm font-mono pl-3 pr-5 py-2 outline-none cursor-pointer hover:text-accent transition-colors truncate">
-                {#each COUNTRIES as country}
-                    <option value={country.gl}>{country.flag} {country.gl.toUpperCase()}</option>
-                {/each}
-            </select>
+        <div class="w-full max-w-2xl mx-auto relative group mb-16">
+            <div class="absolute -inset-0.5 bg-gradient-to-r from-emerald-500/30 to-blue-500/30 rounded-2xl blur opacity-20 group-hover:opacity-50 transition duration-500"></div>
             
-            <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-subtle">
-                <svg class="h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
-                </svg>
-            </div>
-        </div>
+            <div class="relative flex items-center bg-[#0F0F10] rounded-xl border border-zinc-800 focus-within:border-zinc-600 shadow-2xl p-2 transition-colors">
+                
+                <div class="pl-4 pr-3 text-zinc-500">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
+                </div>
 
                 <input 
                     type="text" 
                     bind:value={keyword}
                     on:keydown={(e) => e.key === 'Enter' && handleScan()}
-                    class="w-full bg-transparent border-none focus:ring-0 text-white text-sm md:text-base px-2 py-2 font-mono placeholder-neutral-600 outline-none"
-                    placeholder="e.g. time tracking app for personal use" 
+                    class="w-full bg-transparent border-none focus:ring-0 text-white text-base md:text-lg placeholder-zinc-600 outline-none h-12"
+                    placeholder="e.g. free email marketing for startups..." 
+                    autofocus
                 >
 
                 <button 
                     on:click={handleScan}
                     disabled={isScanning}
-                    class="bg-accent hover:bg-emerald-400 text-black text-xs md:text-sm font-medium py-2 px-4 rounded-lg whitespace-nowrap flex items-center gap-1.5 disabled:opacity-70 disabled:cursor-not-allowed"
+                    class="ml-2 bg-white hover:bg-zinc-200 text-black text-sm font-bold py-3 px-6 rounded-lg whitespace-nowrap flex items-center gap-2 transition-all disabled:opacity-70 disabled:cursor-not-allowed shadow-lg shadow-white/5"
                 >
                     {#if isScanning}
-                        <span>Scanning...</span>
+                        <span class="w-4 h-4 border-2 border-black/30 border-t-black rounded-full animate-spin"></span>
                     {:else}
-                        <span>Scan SERP</span>
+                        <span>Analyze</span>
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"></path></svg>
                     {/if}
                 </button>
             </div>
-            <p class="mt-3 text-[11px] text-subtle font-mono uppercase tracking-[0.18em]">
-                We only look at live Google results.
+            
+            <p class="mt-4 text-[10px] text-zinc-600 font-mono uppercase tracking-widest">
+                Scanning Google US Database
             </p>
         </div>
 
-        <!-- Recent Keywords -->
-
-        <div class="w-full max-w-4xl mx-auto mt-16">
-            <div class="flex items-center justify-center gap-4 mb-6 opacity-100">
-                <div class="h-px bg-zinc-800 w-12 md:w-20"></div>
-                <p class="text-[11px] font-mono text-subtle uppercase tracking-[0.2em]">Trending Searches</p>
-                <div class="h-px bg-zinc-800 w-12 md:w-20"></div>
-            </div>
+        <div class="border-t border-zinc-800/50 pt-10">
+            <p class="text-[10px] font-mono text-zinc-500 uppercase tracking-widest mb-6">
+                Trending Explorations
+            </p>
             
             {#if data.trendingSearches.length > 0}
-                <div class="flex flex-wrap justify-center gap-2">
-                    {#each data.trendingSearches as item}
-                        <a href="/analyze/{item.country}/{item.slug}" class="px-3 py-1.5 rounded-full border border-zinc-800 bg-zinc-900/50 hover:bg-zinc-800 hover:border-zinc-700 transition-colors text-xs text-gray-400 hover:text-white">
-                            {item.keyword}
+                <div class="flex flex-wrap justify-center gap-3">
+                    {#each data.trendingSearches.slice(0, 6) as item}
+                        <a href="/analyze/us/{item.slug}" class="group flex items-center gap-2 px-4 py-2 rounded-full border border-zinc-800 bg-zinc-900/30 hover:bg-zinc-800 hover:border-zinc-700 transition-all">
+                            <span class="text-xs text-zinc-400 group-hover:text-white font-medium">{item.keyword}</span>
                         </a>
                     {/each}
                 </div>
 
-                <div class="text-center mt-4">
+                 <div class="text-center mt-4">
                     <a href="/niches" class="inline-flex items-center gap-2 text-[11px] text-subtle hover:text-white transition-colors border-b border-transparent hover:border-zinc-700 pb-0.5">
                         View All Niches <span class="text-[10px]">→</span>
                     </a>
                 </div>
-
             {:else}
-                <div class="text-xs text-subtle italic">No recent searches.</div>
+                 <div class="flex flex-wrap justify-center gap-3 opacity-40">
+                    <span class="px-4 py-2 rounded-full border border-zinc-800 text-xs text-zinc-500">AI Video Generator</span>
+                    <span class="px-4 py-2 rounded-full border border-zinc-800 text-xs text-zinc-500">Best Crypto Tax Tool</span>
+                    <span class="px-4 py-2 rounded-full border border-zinc-800 text-xs text-zinc-500">Notion Alternatives</span>
+                </div>
             {/if}
         </div>
 
     </div>
 </div>
+

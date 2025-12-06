@@ -34,9 +34,6 @@
                         {item.keyword.toLowerCase()}
                     </span>
                     
-                    <span class="text-[9px] font-mono text-zinc-600 bg-black/20 px-1 py-0.5 rounded group-hover:text-zinc-400 uppercase">
-                        {item.country}
-                    </span>
                 </a>
             {/each}
         </div>

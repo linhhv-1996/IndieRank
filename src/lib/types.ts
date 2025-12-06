@@ -102,6 +102,9 @@ export interface AppItem {
     audience?: string; // Ví dụ: "For HR & Recruiters"
     platforms?: string[]; // Ví dụ: ["Web", "iOS", "Android"]
     use_cases?: string[]; // Ví dụ: ["Event Reg", "Employee Feedback"]
+
+    isSponsor?: boolean;
+    affiliateUrl?: string;
 }
 
 export interface AnalysisResult {
