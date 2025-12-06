@@ -30,7 +30,7 @@
 <div class="w-full">
     <div class="flex items-center justify-between px-1 mb-3">
         <h2 class="text-[11px] font-mono font-medium text-subtle uppercase tracking-widest">
-            Top Recommendations
+            Market Leaders
         </h2>
         <span class="text-[10px] text-zinc-500 font-mono bg-zinc-900/50 px-2 py-0.5 rounded border border-zinc-800">
             {apps.length} Results
