@@ -15,7 +15,7 @@
 
 <aside class="lg:col-span-4 space-y-5 sticky-sidebar">
     
-    <OwnershipCard />
+    <!-- <OwnershipCard /> -->
 
     <div class="bento-card border border-border bg-card/80">
         <SeedingTargets {targets} />
