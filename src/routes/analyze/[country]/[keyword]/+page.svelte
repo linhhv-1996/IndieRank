@@ -55,23 +55,11 @@
 <div class="max-w-custom mx-auto px-4 md:px-6 py-8 w-full">
     <div class="mb-8">
         <a href="/" class="text-[11px] text-subtle hover:text-white mb-4 inline-flex items-center gap-1 group">
-            <span class="group-hover:-translate-x-0.5 transition-transform">←</span> Back to Search
+            <span class="group-hover:-translate-x-0.5 transition-transform">←</span> Back to Home
         </a>
         <h1 class="text-3xl md:text-4xl font-bold text-white capitalize mb-3 tracking-tight">{keyword}</h1>
         
-        <div class="flex flex-wrap items-center gap-3 text-xs text-subtle font-mono">
-            <span class="inline-flex items-center gap-1.5 px-2 py-1 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
-                <span class="relative flex h-1.5 w-1.5">
-                  <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                  <span class="relative inline-flex rounded-full h-1.5 w-1.5 bg-emerald-500"></span>
-                </span>
-                Live Analysis
-            </span>
-            <span class="text-zinc-800">|</span>
-            <span>{country} Database</span>
-            <span class="text-zinc-800">|</span>
-            <span>Updated: Just now</span>
-        </div>
+        
     </div>
 
     <div class="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">

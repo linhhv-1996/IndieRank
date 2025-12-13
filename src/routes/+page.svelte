@@ -28,16 +28,7 @@
     
     <div class="w-full max-w-4xl mx-auto text-center relative z-10">
         
-        <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-zinc-900/80 border border-zinc-800 backdrop-blur-md mb-8">
-            <span class="relative flex h-2 w-2">
-              <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-              <span class="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
-            </span>
-            <span class="text-[10px] font-mono text-emerald-400 uppercase tracking-widest font-semibold">
-                Live Market Intelligence
-            </span>
-        </div>
-
+        
         <h1 class="text-5xl md:text-6xl lg:text-7xl font-bold tracking-tight text-white mb-6 leading-[1.1]">
             Find the Best Tools.<br>
             <span class="text-transparent bg-clip-text bg-gradient-to-r from-zinc-400 to-zinc-600">Skip the SEO Spam.</span>
@@ -73,18 +64,14 @@
                     {#if isScanning}
                         <span class="w-4 h-4 border-2 border-black/30 border-t-black rounded-full animate-spin"></span>
                     {:else}
-                        <span>Analyze</span>
+                        <span>Search</span>
                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"></path></svg>
                     {/if}
                 </button>
             </div>
-            
-            <p class="mt-4 text-[10px] text-zinc-600 font-mono uppercase tracking-widest">
-                Scanning Google US Database
-            </p>
         </div>
 
-        <div class="border-t border-zinc-800/50 pt-10">
+        <div class="border-zinc-800/50 pt-8">
             <p class="text-[10px] font-mono text-zinc-500 uppercase tracking-widest mb-6">
                 Trending Explorations
             </p>

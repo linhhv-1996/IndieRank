@@ -65,7 +65,7 @@
                         {#if isScanning}
                             <span class="w-3 h-3 border-2 border-black/30 border-t-black rounded-full animate-spin"></span>
                         {:else}
-                            <span>Scan</span>
+                            <span>Search</span>
                         {/if}
                     </button>
                 </div>
